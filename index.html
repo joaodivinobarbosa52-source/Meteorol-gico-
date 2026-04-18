@@ -2,606 +2,194 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-<title>MeteoAgro - Previsão ECMWF/GFS & Satélite</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeteoAgro - Localização Atual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#04101f;--bg2:#071828;--bg3:#0b1f35;
-  --card:rgba(11,31,53,0.9);--border:rgba(56,139,253,0.18);
-  --accent:#38b6ff;--accent2:#ff8c38;
-  --ecmwf:#34d399;--gfs:#f97316;
-  --text:#ddeeff;--muted:#6a8fad;--rain:#60a5fa;--danger:#f87171;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
-body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(56,139,253,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,139,253,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
-.wrap{max-width:860px;margin:0 auto;padding:14px 14px 40px;position:relative;z-index:1}
+  :root {
+    --bg: #050d1a;
+    --bg2: #081527;
+    --bg3: #0d1f38;
+    --card: rgba(13,31,56,0.9);
+    --border: rgba(56,139,253,0.2);
+    --accent: #38b6ff;
+    --accent2: #ff7b2f;
+    --ecmwf: #4ade80;
+    --gfs: #fb923c;
+    --text: #e2eaf4;
+    --muted: #7a9abf;
+  }
 
-/* HEADER */
-header{display:flex;align-items:center;justify-content:space-between;padding:12px 0 14px;border-bottom:1px solid var(--border);margin-bottom:16px;gap:10px;flex-wrap:wrap}
-.logo{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:4px;white-space:nowrap}
-.logo .l1{color:var(--accent)}.logo .l2{color:var(--accent2)}
-.search-wrap{position:relative;flex:1;min-width:180px}
-.search-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:22px;padding:9px 40px 9px 36px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:border-color .2s}
-.search-input:focus{border-color:var(--accent)}
-.sico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:.9rem}
-.gps-ico{position:absolute;right:9px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--accent);cursor:pointer;font-size:1rem;padding:4px;display:flex;align-items:center;justify-content:center;transition:opacity .2s}
-.gps-ico:hover{opacity:.7}
-.gps-ico.spin{animation:rot .8s linear infinite}
-@keyframes rot{to{transform:translateY(-50%) rotate(360deg)}}
-.dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--bg3);border:1px solid var(--border);border-radius:14px;overflow:hidden;z-index:50;box-shadow:0 8px 32px rgba(0,0,0,.6);display:none}
-.dropdown.open{display:block}
-.drop-item{padding:11px 15px;font-size:.81rem;cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:flex-start;gap:8px}
-.drop-item:last-child{border-bottom:none}
-.drop-item:hover{background:rgba(56,182,255,.08)}
-.drop-name{font-weight:500;font-size:.82rem}
-.drop-sub{font-size:.7rem;color:var(--muted)}
-.drop-empty{padding:14px 15px;font-size:.8rem;color:var(--muted);text-align:center}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
 
-/* TABS */
-.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);border-radius:12px;padding:4px;border:1px solid var(--border)}
-.tab{flex:1;padding:8px 2px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.74rem;font-weight:500;cursor:pointer;transition:all .2s;text-align:center}
-.tab.active{background:var(--accent);color:#000;font-weight:700}
-.pane{display:none}.pane.active{display:block;animation:fi .3s ease}
-@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .container { max-width: 500px; margin: 0 auto; padding: 15px; }
 
-/* STATE BOX */
-.sbox{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:14px;text-align:center}
-.spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:rot .8s linear infinite}
-.smsg{color:var(--muted);font-size:.84rem;line-height:1.6}
-.retry{margin-top:6px;padding:9px 24px;background:var(--accent);border:none;border-radius:9px;color:#000;font-weight:700;font-size:.85rem;font-family:'DM Sans',sans-serif;cursor:pointer}
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 2px; }
+  .logo span { color: var(--accent2); }
 
-/* HERO */
-.hero{background:linear-gradient(145deg,#0b2540,#061523);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(56,182,255,.1),transparent 70%);pointer-events:none}
-.hero-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
-.btemp{font-family:'Bebas Neue',sans-serif;font-size:5.5rem;line-height:1;color:#fff}
-.btemp sup{font-size:2rem;vertical-align:top;margin-top:10px;color:var(--accent)}
-.hico{font-size:4.5rem;filter:drop-shadow(0 0 16px rgba(56,182,255,.3))}
-.hdesc{font-size:1rem;color:var(--accent);font-weight:500;margin-bottom:3px}
-.hsub{font-size:.72rem;color:var(--muted);margin-bottom:14px}
-.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.gst{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:9px 8px;text-align:center}
-.gst-l{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
-.gst-v{font-family:'JetBrains Mono',monospace;font-size:.9rem;font-weight:600}
+  .loc-bar { 
+    background: var(--bg3); 
+    padding: 12px; 
+    border-radius: 12px; 
+    font-size: 0.85rem; 
+    border: 1px solid var(--border); 
+    color: var(--accent); 
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
 
-/* CHUVA BOX */
-.rain-box{background:linear-gradient(135deg,rgba(96,165,250,.1),rgba(56,182,255,.03));border:1px solid rgba(96,165,250,.25);border-radius:16px;padding:18px;margin-bottom:14px}
-.rtitle{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;color:var(--rain);margin-bottom:12px}
-.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-.rgc{background:rgba(255,255,255,.04);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:10px 8px;text-align:center}
-.rgc-l{font-size:.62rem;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
-.rgc-v{font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--rain)}
+  .tabs { display: flex; gap: 5px; background: var(--bg3); padding: 5px; border-radius: 12px; margin-bottom: 15px; }
+  .tab { flex: 1; padding: 12px; border: none; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; font-size: 0.7rem; cursor: pointer; }
+  .tab.active { background: var(--accent); color: #000; }
 
-/* BARRAS CHUVA */
-.bars-scroll{overflow-x:auto;padding-bottom:4px}
-.bars-inner{display:flex;gap:4px;align-items:flex-end;min-width:max-content;padding-bottom:2px}
-.bc{display:flex;flex-direction:column;align-items:center;gap:1px;width:38px}
-.bval{font-size:.6rem;font-family:'JetBrains Mono',monospace;color:var(--rain);font-weight:700;min-height:14px;display:flex;align-items:flex-end}
-.bbar{width:26px;border-radius:4px 4px 0 0;min-height:3px;background:rgba(96,165,250,.3);transition:opacity .2s}
-.bbar.wet{background:linear-gradient(to top,#1d4ed8,var(--rain));opacity:.85}
-.btime{font-size:.58rem;color:var(--muted);margin-top:2px}
-.bprob{font-size:.56rem;color:var(--muted)}
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
 
-/* HOURLY GERAL */
-.hscroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:thin}
-.hcard{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:9px 11px;text-align:center;min-width:64px;transition:border-color .2s}
-.hcard.now{border-color:var(--accent);background:rgba(56,182,255,.07)}
-.htime{font-size:.65rem;color:var(--muted);margin-bottom:3px}
-.hicon{font-size:1.25rem;margin-bottom:1px}
-.htp{font-family:'JetBrains Mono',monospace;font-size:.88rem;font-weight:600}
-.hrn{font-size:.63rem;color:var(--rain);margin-top:2px;font-weight:700}
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 12px; }
+  .temp-val { font-size: 3.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin: 5px 0; color: #fff; }
+  .label-mod { font-size: 0.7rem; text-transform: uppercase; color: var(--muted); font-weight: bold; }
 
-/* SECTION */
-.sec{font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px}
-.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+  .grid-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+  .s-box { background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; border: 1px solid var(--border); }
+  .s-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .s-value { font-size: 1rem; font-weight: 600; }
 
-/* DAILY */
-.dlist{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
-.drow{display:grid;grid-template-columns:86px 33px 1fr 50px 50px 56px;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px 13px}
-.drow:hover{border-color:var(--accent)}
-.dname{font-size:.8rem;font-weight:600}.dico{font-size:1.15rem;text-align:center}
-.tbw{display:flex;align-items:center;gap:5px}.tbbg{flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
-.tbf{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--rain),var(--accent2))}
-.dmin{font-family:'JetBrains Mono',monospace;font-size:.77rem;color:var(--rain);text-align:right}
-.dmax{font-family:'JetBrains Mono',monospace;font-size:.77rem;color:var(--accent2);text-align:right}
-.dprp{font-size:.7rem;color:var(--rain);text-align:right}
+  .loader { text-align: center; padding: 40px; }
+  .spinner { width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: 0; } }
 
-/* MODELOS */
-.mrow{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px}
-.mcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px}
-.mcard.ec{border-top:3px solid var(--ecmwf)}.mcard.gf{border-top:3px solid var(--gfs)}
-.mhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
-.mname{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px}
-.mcard.ec .mname{color:var(--ecmwf)}.mcard.gf .mname{color:var(--gfs)}
-.morg{font-size:.62rem;color:var(--muted)}
-.mbadge{display:inline-flex;font-size:.64rem;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:20px;font-weight:700}
-.mbadge.ec{background:rgba(52,211,153,.1);color:var(--ecmwf);border:1px solid rgba(52,211,153,.3)}
-.mbadge.gf{background:rgba(249,115,22,.1);color:var(--gfs);border:1px solid rgba(249,115,22,.3)}
-.mtemp{font-family:'JetBrains Mono',monospace;font-size:2rem;font-weight:700;margin-bottom:10px}
-.mcard.ec .mtemp{color:var(--ecmwf)}.mcard.gf .mtemp{color:var(--gfs)}
-.mst{display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:5px}
-.mst-l{color:var(--muted)}.mst-v{font-family:'JetBrains Mono',monospace;font-weight:600}
-.diff-warn{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:10px 13px;font-size:.76rem;color:#fbbf24;margin-bottom:12px;display:none}
-
-/* SAT */
-.sat-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.sat-btn{padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:.74rem;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s}
-.sat-btn:hover,.sat-btn.active{background:var(--accent);color:#000;border-color:var(--accent)}
-.sat-frame{border-radius:15px;overflow:hidden;border:1px solid var(--border);position:relative;margin-bottom:10px}
-.sat-frame iframe{width:100%;height:460px;border:none;display:block}
-.sat-over{position:absolute;top:9px;left:9px;display:flex;gap:5px}
-.sbadge{background:rgba(4,16,31,.85);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.67rem;font-family:'JetBrains Mono',monospace;color:var(--accent);backdrop-filter:blur(8px)}
-
-/* UPDATE */
-.upd{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-bottom:8px}
-.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ecmwf);margin-right:5px;animation:blink 2s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
-
-@media(max-width:580px){
-  .g4{grid-template-columns:repeat(2,1fr)}
-  .mrow{grid-template-columns:1fr}
-  .drow{grid-template-columns:76px 30px 1fr 44px 44px}
-  .dprp{display:none}
-  .btemp{font-size:4rem}
-  .search-wrap{max-width:100%;flex:1 1 100%}
-}
+  iframe { width: 100%; height: 480px; border: none; border-radius: 16px; border: 1px solid var(--border); }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<header>
-  <div class="logo"><span class="l1">METEO</span><span class="l2">AGRO</span></div>
-  <div class="search-wrap">
-    <span class="sico">&#128269;</span>
-    <input class="search-input" id="searchInput" type="text" placeholder="Buscar cidade, fazenda, município…" autocomplete="off">
-    <button class="gps-ico" id="gpsBtn" title="Minha localização atual" onclick="triggerGPS()">&#128225;</button>
-    <div class="dropdown" id="dropdown"></div>
+<div class="container">
+  <header>
+    <div class="logo">METEO<span>AGRO</span></div>
+  </header>
+
+  <div class="loc-bar" id="txtLocal">
+    📍 <span id="coordsDisplay">Buscando sua localização...</span>
   </div>
-</header>
 
-<div class="tabs">
-  <button class="tab active" onclick="showTab('agora',this)">&#127777; Agora</button>
-  <button class="tab" onclick="showTab('previsao',this)">&#128197; 7 Dias</button>
-  <button class="tab" onclick="showTab('modelos',this)">&#128225; Modelos</button>
-  <button class="tab" onclick="showTab('satelite',this)">&#128752; Satélite</button>
-</div>
+  <div class="tabs">
+    <button class="tab active" onclick="trocarAba(event, 'aba-agora')">🌡️ AGORA</button>
+    <button class="tab" onclick="trocarAba(event, 'aba-modelos')">📡 MODELOS</button>
+    <button class="tab" onclick="trocarAba(event, 'aba-satelite')">🛰️ SATÉLITE</button>
+  </div>
 
-<!-- AGORA -->
-<div class="pane active" id="pane-agora">
-  <div class="sbox" id="st-agora">
+  <div id="carregando" class="loader">
     <div class="spinner"></div>
-    <div class="smsg">Acessando GPS / localização atual...</div>
+    <p style="font-size:0.8rem; color:var(--muted)">Sincronizando com sua posição atual...</p>
   </div>
-  <div id="data-agora" style="display:none">
-    <div class="upd"><span><span class="dot"></span>ECMWF (Europeu) · Tempo real</span><span id="updTime"></span></div>
-    <div class="hero">
-      <div class="hero-top">
-        <div>
-          <div class="btemp" id="hTemp">&#8212;<sup>°C</sup></div>
-          <div class="hdesc" id="hDesc">&#8212;</div>
-          <div class="hsub" id="hSub">&#8212;</div>
+
+  <div id="painel" style="display:none">
+    <div id="aba-agora" class="tab-content active">
+      <div class="card" style="background: linear-gradient(135deg, #0d2a4a 0%, #050d1a 100%);">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <div>
+            <div class="label-mod">Tempo Real na sua Região</div>
+            <div class="temp-val" id="res-temp">--°</div>
+          </div>
+          <div style="font-size: 3.5rem">🌦️</div>
         </div>
-        <div class="hico" id="hIco">&#127780;</div>
-      </div>
-      <div class="g4">
-        <div class="gst"><div class="gst-l">Sensação</div><div class="gst-v" id="hFeel">&#8212;</div></div>
-        <div class="gst"><div class="gst-l">Umidade</div><div class="gst-v" id="hHum">&#8212;</div></div>
-        <div class="gst"><div class="gst-l">Vento</div><div class="gst-v" id="hWind">&#8212;</div></div>
-        <div class="gst"><div class="gst-l">UV</div><div class="gst-v" id="hUV">&#8212;</div></div>
-        <div class="gst"><div class="gst-l">Pressão</div><div class="gst-v" id="hPres">&#8212;</div></div>
-        <div class="gst"><div class="gst-l">Visib.</div><div class="gst-v" id="hVis">&#8212;</div></div>
-        <div class="gst"><div class="gst-l">Nuvens</div><div class="gst-v" id="hCloud">&#8212;</div></div>
-        <div class="gst"><div class="gst-l">Rajada</div><div class="gst-v" id="hGust">&#8212;</div></div>
+        <div class="grid-stats">
+          <div class="s-box"><div class="s-label">Umidade</div><div class="s-value" id="res-hum">--</div></div>
+          <div class="s-box"><div class="s-label">Vento</div><div class="s-value" id="res-vento">--</div></div>
+          <div class="s-box"><div class="s-label">Chuva 1h</div><div class="s-value" id="res-chuva">--</div></div>
+          <div class="s-box"><div class="s-label">Sensação</div><div class="s-value" id="res-sente">--</div></div>
+        </div>
       </div>
     </div>
 
-    <div class="rain-box">
-      <div class="rtitle">&#127783; Chuva — Próximas 24h (ECMWF)</div>
-      <div class="rgrid">
-        <div class="rgc"><div class="rgc-l">Agora (1h)</div><div class="rgc-v" id="rNow">&#8212;</div></div>
-        <div class="rgc"><div class="rgc-l">Próx. 6h</div><div class="rgc-v" id="r6h">&#8212;</div></div>
-        <div class="rgc"><div class="rgc-l">Próx. 24h</div><div class="rgc-v" id="r24h">&#8212;</div></div>
-        <div class="rgc"><div class="rgc-l">Prob. atual</div><div class="rgc-v" id="rProb">&#8212;</div></div>
-        <div class="rgc"><div class="rgc-l">Pico horário</div><div class="rgc-v" id="rPeak">&#8212;</div></div>
-        <div class="rgc"><div class="rgc-l">Vol. pico</div><div class="rgc-v" id="rPeakMm">&#8212;</div></div>
+    <div id="aba-modelos" class="tab-content">
+      <div class="card" style="border-left: 5px solid var(--ecmwf);">
+        <div class="label-mod" style="color:var(--ecmwf)">Europeu (ECMWF)</div>
+        <div class="temp-val" id="mod-ec">--°</div>
       </div>
-      <div class="sec">Volume por hora (mm)</div>
-      <div class="bars-scroll"><div class="bars-inner" id="rainBars"></div></div>
+      <div class="card" style="border-left: 5px solid var(--gfs);">
+        <div class="label-mod" style="color:var(--gfs)">Americano (GFS)</div>
+        <div class="temp-val" id="mod-gfs">--°</div>
+      </div>
     </div>
 
-    <div class="sec">Próximas 24h — hora a hora (ECMWF)</div>
-    <div class="hscroll" id="hourlyScroll"></div>
-  </div>
-</div>
-
-<!-- 7 DIAS -->
-<div class="pane" id="pane-previsao">
-  <div class="sec">Previsão 7 dias · ECMWF (Europeu)</div>
-  <div class="dlist" id="dailyList"></div>
-  <div class="sec">Comparativo GFS (Americano) + ECMWF</div>
-  <div class="hscroll" id="rainCompare"></div>
-</div>
-
-<!-- MODELOS -->
-<div class="pane" id="pane-modelos">
-  <div class="diff-warn" id="diffWarn"></div>
-  <div class="mrow">
-    <div class="mcard ec">
-      <div class="mhdr"><div><div class="mname">ECMWF IFS</div><div class="morg">Centro Europeu · Alta precisão</div></div><span class="mbadge ec">Europeu</span></div>
-      <div class="mtemp" id="ecTemp">&#8212;</div>
-      <div class="mst"><span class="mst-l">Min/Max hoje</span><span class="mst-v" id="ecRange">&#8212;</span></div>
-      <div class="mst"><span class="mst-l">Chuva 24h</span><span class="mst-v" id="ecRain">&#8212;</span></div>
-      <div class="mst"><span class="mst-l">Umidade</span><span class="mst-v" id="ecHum">&#8212;</span></div>
-      <div class="mst"><span class="mst-l">Vento</span><span class="mst-v" id="ecWind">&#8212;</span></div>
-    </div>
-    <div class="mcard gf">
-      <div class="mhdr"><div><div class="mname">GFS (NOAA)</div><div class="morg">Americano · Atualiza 4x/dia</div></div><span class="mbadge gf">Americano</span></div>
-      <div class="mtemp" id="gfsTemp">&#8212;</div>
-      <div class="mst"><span class="mst-l">Min/Max hoje</span><span class="mst-v" id="gfsRange">&#8212;</span></div>
-      <div class="mst"><span class="mst-l">Chuva 24h</span><span class="mst-v" id="gfsRain">&#8212;</span></div>
-      <div class="mst"><span class="mst-l">Umidade</span><span class="mst-v" id="gfsHum">&#8212;</span></div>
-      <div class="mst"><span class="mst-l">Vento</span><span class="mst-v" id="gfsWind">&#8212;</span></div>
+    <div id="aba-satelite" class="tab-content">
+      <iframe id="mapa-windy"></iframe>
     </div>
   </div>
-  <div style="margin-top:10px;padding:13px;background:var(--bg3);border:1px solid var(--border);border-radius:11px;font-size:.72rem;color:var(--muted);line-height:1.7">
-    <strong style="color:var(--text)">🌎 Comparação gratuita:</strong> <span style="color:var(--ecmwf)">ECMWF</span> (europeu) melhor para ciclones e precipitação no Brasil. <span style="color:var(--gfs)">GFS</span> (americano) excelente para tendências de 7 dias. Dados via Open-Meteo.
-  </div>
 </div>
 
-<!-- SATELITE -->
-<div class="pane" id="pane-satelite">
-  <div class="sec">Satélite Europeu/Americano · Windy (ECMWF)</div>
-  <div class="sat-btns">
-    <button class="sat-btn active" onclick="setSat('clouds_new',this)">&#9925; Nuvens</button>
-    <button class="sat-btn" onclick="setSat('precipitation_new',this)">&#127783; Chuva</button>
-    <button class="sat-btn" onclick="setSat('wind_new',this)">&#128168; Vento</button>
-    <button class="sat-btn" onclick="setSat('temp_new',this)">&#127777; Temperatura</button>
-    <button class="sat-btn" onclick="setSat('radar',this)">&#128225; Radar</button>
-  </div>
-  <div class="sat-frame">
-    <iframe id="windyFrame" src="" allowfullscreen loading="lazy"></iframe>
-    <div class="sat-over"><span class="sbadge">&#128752; Windy · ECMWF/GFS</span><span class="sbadge">Satélite ao vivo</span></div>
-  </div>
-  <div style="font-size:.7rem;color:var(--muted);text-align:center">Camadas: GOES-16 / Meteosat + modelo europeu ECMWF.</div>
-</div>
-
-</div>
 <script>
-// ========================== APLICAÇÃO COMPLETA ==========================
-let LAT = null, LON = null, LOCNAME = '';
-let timeZone = 'America/Sao_Paulo';
-try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo'; } catch(e) {}
-let ecData = null, gfsData = null;
-let currentSatLayer = 'clouds_new';
+let lat, lon;
 
-// Códigos climáticos
-const WEATHER_CODES = {
-  0:['☀️','Céu limpo'],1:['🌤️','Predom. limpo'],2:['⛅','Parcial nublado'],3:['☁️','Nublado'],
-  45:['🌫️','Névoa'],48:['🌫️','Névoa/geada'],51:['🌦️','Chuvisco leve'],53:['🌦️','Chuvisco'],
-  55:['🌧️','Chuvisco forte'],61:['🌧️','Chuva leve'],63:['🌧️','Chuva mod.'],65:['🌧️','Chuva forte'],
-  80:['🌦️','Pancadas leves'],81:['🌧️','Pancadas'],82:['⛈️','Pancadas fortes'],95:['⛈️','Trovoada'],
-  96:['⛈️','Trovoada/granizo'],99:['⛈️','Trovoada intensa']
-};
-function getWeatherIcon(code) { return WEATHER_CODES[code] || ['🌤️','Variável']; }
-function windDirection(deg) { const dirs = ['N','NE','L','SE','S','SO','O','NO']; return dirs[Math.round(deg/45)%8]; }
+async function carregarDados() {
+  if (!lat || !lon) return;
 
-// Elementos DOM
-const searchInput = document.getElementById('searchInput');
-const dropdown = document.getElementById('dropdown');
-
-// Busca Nominatim
-let searchTimer = null;
-searchInput.addEventListener('input', function() {
-  clearTimeout(searchTimer);
-  const q = this.value.trim();
-  if (q.length < 2) { dropdown.classList.remove('open'); return; }
-  searchTimer = setTimeout(() => performSearch(q), 350);
-});
-document.addEventListener('click', (e) => { if (!e.target.closest('.search-wrap')) dropdown.classList.remove('open'); });
-
-async function performSearch(query) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&accept-language=pt&addressdetails=1&countrycodes=br,ar,py,bo,pe,co,ve,uy,cl`;
-  try {
-    let resp = await fetch(url);
-    let data = await resp.json();
-    if (!data.length) {
-      const fallback = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&accept-language=pt`);
-      data = await fallback.json();
-    }
-    showDropdownResults(data);
-  } catch(e) { dropdown.innerHTML = '<div class="drop-empty">Erro na busca. Tente novamente.</div>'; dropdown.classList.add('open'); }
-}
-
-function showDropdownResults(results) {
-  if (!results || !results.length) { dropdown.innerHTML = '<div class="drop-empty">Nenhum local encontrado.</div>'; dropdown.classList.add('open'); return; }
-  let html = '';
-  results.forEach(r => {
-    const parts = r.display_name.split(',');
-    const name = parts.slice(0,2).join(',').trim();
-    const sub = parts.slice(2,4).join(',').trim();
-    const lat = parseFloat(r.lat), lon = parseFloat(r.lon);
-    const safeName = name.replace(/'/g, "\\'").replace(/\\/g,'\\\\');
-    html += `<div class="drop-item" onclick="selectLocation(${lat}, ${lon}, '${safeName.replace(/"/g, '&quot;')}')">
-      <span>📍</span><div><div class="drop-name">${escapeHtml(name)}</div>${sub ? `<div class="drop-sub">${escapeHtml(sub)}</div>` : ''}</div></div>`;
-  });
-  dropdown.innerHTML = html;
-  dropdown.classList.add('open');
-}
-function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-function selectLocation(lat, lon, name) {
-  LAT = lat; LON = lon; LOCNAME = name;
-  searchInput.value = name;
-  dropdown.classList.remove('open');
-  loadAllWeatherData();
-}
-
-// GPS
-function triggerGPS() {
-  const btn = document.getElementById('gpsBtn');
-  if (!navigator.geolocation) { alert('GPS não suportado. Use busca manual.'); return; }
-  btn.classList.add('spin');
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      LAT = pos.coords.latitude; LON = pos.coords.longitude;
-      btn.classList.remove('spin');
-      reverseGeocode(LAT, LON, name => { LOCNAME = name; searchInput.value = name; loadAllWeatherData(); });
-    },
-    err => {
-      btn.classList.remove('spin');
-      alert('Permissão negada ou GPS indisponível. Digite uma cidade na busca.');
-      document.getElementById('st-agora').innerHTML = '<div class="sbox" style="padding:40px"><div>📍</div><div class="smsg">Ative a localização ou pesquise acima.</div></div>';
-    },
-    { timeout: 10000, enableHighAccuracy: true }
-  );
-}
-
-async function reverseGeocode(lat, lon, callback) {
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=pt`);
-    const data = await res.json();
-    const city = data.address?.city || data.address?.town || data.address?.village || '';
-    const state = data.address?.state || '';
-    callback([city, state].filter(Boolean).join(', ') || `${lat.toFixed(2)}, ${lon.toFixed(2)}`);
-  } catch(e) { callback(`${lat.toFixed(2)}, ${lon.toFixed(2)}`); }
-}
-
-// APIs Open-Meteo (ECMWF e GFS gratuitos)
-async function fetchECMWF() {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&forecast_days=7&timezone=${encodeURIComponent(timeZone)}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,cloud_cover,visibility,uv_index&hourly=temperature_2m,precipitation,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,uv_index_max`;
-  const res = await fetch(url);
-  const json = await res.json();
-  if (json.error) throw new Error(json.reason || 'ECMWF error');
-  return json;
-}
-
-async function fetchGFS() {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&forecast_days=7&models=gfs_seamless&timezone=${encodeURIComponent(timeZone)}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,cloud_cover&daily=precipitation_sum,temperature_2m_max,temperature_2m_min`;
-  try {
-    const res = await fetch(url);
-    const json = await res.json();
-    if (json.error) return null;
-    return json;
-  } catch(e) { return null; }
-}
-
-async function loadAllWeatherData() {
-  if (LAT === null || LON === null) return;
-  showLoadingState(true);
-  document.getElementById('data-agora').style.display = 'none';
-  try {
-    const ec = await fetchECMWF();
-    ecData = ec;
-    const gfs = await fetchGFS();
-    gfsData = gfs;
-    document.getElementById('st-agora').style.display = 'none';
-    document.getElementById('data-agora').style.display = 'block';
-    renderCurrentWeather();
-    renderDailyForecast();
-    renderModelComparison();
-    if (document.getElementById('pane-satelite').classList.contains('active')) updateSatellite();
-  } catch (err) {
-    console.error(err);
-    showErrorState('Falha ao obter dados. Verifique internet ou tente novamente.', true);
-  }
-}
-
-function showLoadingState(show) {
-  const stDiv = document.getElementById('st-agora');
-  stDiv.style.display = 'flex';
-  stDiv.innerHTML = '<div class="spinner"></div><div class="smsg">Carregando previsão ECMWF (europeu) + GFS (americano)...</div>';
-}
-function showErrorState(msg, showRetry) {
-  const stDiv = document.getElementById('st-agora');
-  stDiv.style.display = 'flex';
-  stDiv.innerHTML = `<div style="color:var(--danger);text-align:center">⚠️ ${msg}</div>${showRetry ? '<button class="retry" onclick="loadAllWeatherData()">Tentar novamente</button>' : ''}`;
-}
-
-// Render atual
-function renderCurrentWeather() {
-  if (!ecData) return;
-  const c = ecData.current;
-  const now = new Date();
-  const [icon, desc] = getWeatherIcon(c.weather_code);
-  document.getElementById('hTemp').innerHTML = Math.round(c.temperature_2m) + '<sup>°C</sup>';
-  document.getElementById('hDesc').textContent = desc;
-  document.getElementById('hSub').textContent = `${now.toLocaleDateString('pt-BR', { weekday: 'long' })} · ${now.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })}${LOCNAME ? ' · ' + LOCNAME : ''}`;
-  document.getElementById('hIco').textContent = icon;
-  document.getElementById('hFeel').textContent = Math.round(c.apparent_temperature) + '°C';
-  document.getElementById('hHum').textContent = c.relative_humidity_2m + '%';
-  document.getElementById('hWind').textContent = Math.round(c.wind_speed_10m) + ' km/h';
-  document.getElementById('hUV').textContent = c.uv_index != null ? c.uv_index : '—';
-  document.getElementById('hPres').textContent = Math.round(c.surface_pressure) + ' hPa';
-  document.getElementById('hVis').textContent = c.visibility ? (c.visibility/1000).toFixed(0)+' km' : '—';
-  document.getElementById('hCloud').textContent = c.cloud_cover + '%';
-  document.getElementById('hGust').textContent = Math.round(c.wind_gusts_10m) + ' km/h';
-  document.getElementById('updTime').textContent = `Atual: ${now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'})}`;
-  renderRainfall();
-  renderHourlyForecast();
-}
-
-function renderRainfall() {
-  const h = ecData.hourly;
-  const nowISO = new Date().toISOString().slice(0,13);
-  let idx = 0;
-  for (let i=0;i<h.time.length;i++) if (h.time[i].slice(0,13) >= nowISO) { idx = i; break; }
-  let rainNow = h.precipitation[idx] || 0;
-  let sum6 = 0, sum24 = 0;
-  for (let i=0;i<6;i++) sum6 += (h.precipitation[idx+i] || 0);
-  for (let i=0;i<24;i++) sum24 += (h.precipitation[idx+i] || 0);
-  let prob = h.precipitation_probability[idx] || 0;
-  let peakVal = 0, peakIdx = idx;
-  for (let i=0;i<24 && idx+i<h.time.length;i++) { let v = h.precipitation[idx+i]||0; if(v>peakVal){peakVal=v;peakIdx=idx+i;} }
-  const peakTime = peakVal>0 ? new Date(h.time[peakIdx]).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—';
-  document.getElementById('rNow').textContent = rainNow.toFixed(1) + ' mm';
-  document.getElementById('r6h').textContent = sum6.toFixed(1) + ' mm';
-  document.getElementById('r24h').textContent = sum24.toFixed(1) + ' mm';
-  document.getElementById('rProb').textContent = prob + '%';
-  document.getElementById('rPeak').textContent = peakTime;
-  document.getElementById('rPeakMm').textContent = peakVal.toFixed(1) + ' mm';
+  const loader = document.getElementById('carregando');
+  const painel = document.getElementById('painel');
   
-  const barsContainer = document.getElementById('rainBars');
-  barsContainer.innerHTML = '';
-  let maxMm = 0.5;
-  for (let i=0;i<24 && idx+i<h.time.length;i++) maxMm = Math.max(maxMm, h.precipitation[idx+i]||0);
-  for (let i=0;i<24 && idx+i<h.time.length;i++) {
-    const mm = h.precipitation[idx+i]||0;
-    const probH = h.precipitation_probability[idx+i]||0;
-    const height = Math.max(3, Math.round((mm / maxMm) * 55));
-    const timeLabel = new Date(h.time[idx+i]).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    const div = document.createElement('div'); div.className = 'bc';
-    div.innerHTML = `<div class="bval">${mm>0?mm.toFixed(1):''}</div><div class="bbar ${mm>0?'wet':''}" style="height:${height}px"></div><div class="btime">${timeLabel}</div><div class="bprob">${probH}%</div>`;
-    barsContainer.appendChild(div);
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m&models=ecmwf_ifs04,gfs_seamless&timezone=auto`;
+    const resposta = await fetch(url);
+    const dados = await resposta.json();
+    const c = dados.current;
+
+    document.getElementById('res-temp').innerText = Math.round(c.temperature_2m_ecmwf_ifs04 || c.temperature_2m_gfs_seamless) + "°";
+    document.getElementById('res-hum').innerText = (c.relative_humidity_2m_ecmwf_ifs04 || c.relative_humidity_2m_gfs_seamless) + "%";
+    document.getElementById('res-vento').innerText = (c.wind_speed_10m_ecmwf_ifs04 || c.wind_speed_10m_gfs_seamless) + " km/h";
+    document.getElementById('res-chuva').innerText = (c.precipitation_ecmwf_ifs04 || 0) + " mm";
+    document.getElementById('res-sente').innerText = Math.round(c.apparent_temperature_ecmwf_ifs04 || 0) + "°";
+
+    document.getElementById('mod-ec').innerText = Math.round(c.temperature_2m_ecmwf_ifs04) + "°";
+    document.getElementById('mod-gfs').innerText = Math.round(c.temperature_2m_gfs_seamless) + "°";
+
+    loader.style.display = 'none';
+    painel.style.display = 'block';
+    atualizarSatelite();
+
+  } catch (erro) {
+    console.error(erro);
+    document.getElementById('carregando').innerHTML = "Erro ao carregar dados locais.";
   }
 }
 
-function renderHourlyForecast() {
-  const h = ecData.hourly;
-  const nowISO = new Date().toISOString().slice(0,13);
-  const wrap = document.getElementById('hourlyScroll');
-  wrap.innerHTML = '';
-  let count = 0;
-  for (let i=0;i<h.time.length && count<28;i++) {
-    if (h.time[i].slice(0,13) < nowISO) continue;
-    const [iconCode] = getWeatherIcon(h.weather_code[i]);
-    const isNow = h.time[i].slice(0,13) === nowISO;
-    const timeStr = isNow ? '▶ Agora' : new Date(h.time[i]).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    const temp = Math.round(h.temperature_2m[i]);
-    const rain = h.precipitation[i]||0;
-    const probRain = h.precipitation_probability[i]||0;
-    const card = document.createElement('div'); card.className = `hcard ${isNow?'now':''}`;
-    card.innerHTML = `<div class="htime">${timeStr}</div><div class="hicon">${iconCode}</div><div class="htp">${temp}°</div><div class="hrn">${rain>0?rain.toFixed(1)+'mm':probRain+'%'}</div>`;
-    wrap.appendChild(card);
-    count++;
-  }
-}
-
-function renderDailyForecast() {
-  const daily = ecData.daily;
-  const wrap = document.getElementById('dailyList');
-  wrap.innerHTML = '';
-  const minAll = Math.min(...daily.temperature_2m_min);
-  const maxAll = Math.max(...daily.temperature_2m_max);
-  daily.time.forEach((t, i) => {
-    const [icon] = getWeatherIcon(daily.weather_code[i]);
-    const min = daily.temperature_2m_min[i], max = daily.temperature_2m_max[i];
-    const pct = ((max - minAll) / (maxAll - minAll) * 100).toFixed(0);
-    const rainSum = (daily.precipitation_sum[i]||0).toFixed(1);
-    const probMax = daily.precipitation_probability_max[i]||0;
-    const d = new Date(t+'T12:00:00');
-    const today = new Date(); today.setHours(12,0,0,0);
-    const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
-    let dayName = '';
-    if (d.toDateString() === today.toDateString()) dayName = 'Hoje';
-    else if (d.toDateString() === tomorrow.toDateString()) dayName = 'Amanhã';
-    else dayName = d.toLocaleDateString('pt-BR', { weekday:'short' }).slice(0,3)+' '+d.getDate();
-    const row = document.createElement('div'); row.className = 'drow';
-    row.innerHTML = `<div class="dname">${dayName}</div><div class="dico">${icon}</div><div class="tbw"><div class="tbbg"><div class="tbf" style="width:${pct}%"></div></div></div><div class="dmin">${Math.round(min)}°</div><div class="dmax">${Math.round(max)}°</div><div class="dprp">${probMax}% 💧 ${rainSum}mm</div>`;
-    wrap.appendChild(row);
-  });
-  // rain compare
-  const compDiv = document.getElementById('rainCompare');
-  if (compDiv && ecData && gfsData) {
-    compDiv.innerHTML = '';
-    ecData.daily.time.forEach((t,i) => {
-      const ecRain = (ecData.daily.precipitation_sum[i]||0).toFixed(1);
-      const gfsRain = gfsData ? (gfsData.daily.precipitation_sum[i]||0).toFixed(1) : '—';
-      const dateLabel = new Date(t+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-      const item = document.createElement('div'); item.className = 'hcard'; item.style.minWidth = '80px';
-      item.innerHTML = `<div style="font-size:.7rem;color:var(--muted)">${dateLabel}</div><div style="color:var(--ecmwf);font-weight:bold">${ecRain}mm</div><div style="font-size:.6rem;">ECMWF</div><div style="color:var(--gfs);font-weight:bold">${gfsRain}mm</div><div style="font-size:.6rem;">GFS</div>`;
-      compDiv.appendChild(item);
+function iniciarApp() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      lat = pos.coords.latitude;
+      lon = pos.coords.longitude;
+      document.getElementById('coordsDisplay').innerText = `Sua Posição: ${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+      carregarDados();
+    }, () => {
+      document.getElementById('coordsDisplay').innerText = "GPS Negado. Clique em '📍 GPS' para permitir.";
+      // Caso negue, não carrega automático para não mostrar Brasília sem você querer
+      document.getElementById('carregando').innerHTML = "Aguardando permissão de localização...";
     });
   }
 }
 
-function renderModelComparison() {
-  if (!ecData) return;
-  const curr = ecData.current;
-  document.getElementById('ecTemp').textContent = Math.round(curr.temperature_2m)+'°';
-  document.getElementById('ecRange').textContent = `↓${Math.round(ecData.daily.temperature_2m_min[0])}° ↑${Math.round(ecData.daily.temperature_2m_max[0])}°`;
-  document.getElementById('ecRain').textContent = (ecData.daily.precipitation_sum[0]||0).toFixed(1)+' mm';
-  document.getElementById('ecHum').textContent = curr.relative_humidity_2m+'%';
-  document.getElementById('ecWind').textContent = `${Math.round(curr.wind_speed_10m)} km/h ${windDirection(curr.wind_direction_10m)}`;
-  if (gfsData) {
-    const gCurr = gfsData.current;
-    document.getElementById('gfsTemp').textContent = Math.round(gCurr.temperature_2m)+'°';
-    document.getElementById('gfsRange').textContent = `↓${Math.round(gfsData.daily.temperature_2m_min[0])}° ↑${Math.round(gfsData.daily.temperature_2m_max[0])}°`;
-    document.getElementById('gfsRain').textContent = (gfsData.daily.precipitation_sum[0]||0).toFixed(1)+' mm';
-    document.getElementById('gfsHum').textContent = gCurr.relative_humidity_2m+'%';
-    document.getElementById('gfsWind').textContent = `${Math.round(gCurr.wind_speed_10m)} km/h ${windDirection(gCurr.wind_direction_10m)}`;
-    const diff = Math.abs(curr.temperature_2m - gCurr.temperature_2m);
-    if(diff >= 2) {
-      const warn = document.getElementById('diffWarn');
-      warn.style.display = 'block';
-      warn.textContent = `⚠️ Diferença de ${diff.toFixed(1)}°C entre modelos. ECMWF (europeu) mais confiável para o Brasil.`;
-    } else document.getElementById('diffWarn').style.display = 'none';
-  } else {
-    document.getElementById('gfsTemp').textContent = '—'; document.getElementById('gfsRain').textContent = 'indisponível';
-  }
-}
-
-// Satélite
-function updateSatellite() {
-  if (!LAT || !LON) return;
-  const iframe = document.getElementById('windyFrame');
-  iframe.src = `https://embed.windy.com/embed2.html?lat=${LAT}&lon=${LON}&detailLat=${LAT}&detailLon=${LON}&width=650&height=460&zoom=7&level=surface&overlay=${currentSatLayer}&product=ecmwf&menu=&message=&marker=true&calendar=12&pressure=&type=map&location=coordinates&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
-}
-function setSat(layer, btn) {
-  currentSatLayer = layer;
-  document.querySelectorAll('.sat-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  updateSatellite();
-}
-
-function showTab(id, btn) {
-  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+function trocarAba(e, id) {
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('pane-'+id).classList.add('active');
-  btn.classList.add('active');
-  if (id === 'satelite') updateSatellite();
+  document.getElementById(id).classList.add('active');
+  e.currentTarget.classList.add('active');
 }
 
-// Inicialização automática com GPS
-(function init() {
-  if (navigator.geolocation) {
-    showLoadingState(true);
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        LAT = pos.coords.latitude; LON = pos.coords.longitude;
-        reverseGeocode(LAT, LON, name => { LOCNAME = name; searchInput.value = name; loadAllWeatherData(); });
-      },
-      () => {
-        document.getElementById('st-agora').innerHTML = '<div class="sbox"><div>🌍</div><div class="smsg">Clique no ícone 📡 ou busque uma cidade acima.</div></div>';
-      },
-      { timeout: 8000, enableHighAccuracy: true }
-    );
-  } else {
-    document.getElementById('st-agora').innerHTML = '<div class="sbox"><div>🔍</div><div class="smsg">Digite o nome da cidade na barra de busca.</div></div>';
-  }
-})();
+function atualizarSatelite() {
+  const iframe = document.getElementById('mapa-windy');
+  iframe.src = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&zoom=6&level=surface&overlay=radar&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
+}
+
+// Inicia tentando pegar sua localização direto
+iniciarApp();
 </script>
 </body>
 </html>
