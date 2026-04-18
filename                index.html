@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeteoAgro Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050d1a;
+    --bg2: #081527;
+    --bg3: #0d1f38;
+    --card: rgba(13,31,56,0.9);
+    --border: rgba(56,139,253,0.2);
+    --accent: #38b6ff;
+    --accent2: #ff7b2f;
+    --ecmwf: #4ade80;
+    --gfs: #fb923c;
+    --text: #e2eaf4;
+    --muted: #7a9abf;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+  .container { max-width: 600px; margin: 0 auto; padding: 15px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 2px; }
+  .logo span { color: var(--accent2); }
+
+  .gps-row { display: flex; gap: 8px; align-items: center; margin-bottom: 15px; }
+  .btn-gps { background: var(--bg3); border: 1px solid var(--border); color: var(--accent); padding: 8px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
+  .loc-badge { background: var(--bg2); padding: 8px 15px; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--border); color: var(--muted); flex-grow: 1; text-align: center; }
+
+  .tabs { display: flex; gap: 5px; background: var(--bg3); padding: 5px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
+  .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; font-size: 0.75rem; cursor: pointer; }
+  .tab.active { background: var(--accent); color: #000; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 12px; position: relative; overflow: hidden; }
+  .card.ecmwf { border-left: 4px solid var(--ecmwf); }
+  .card.gfs { border-left: 4px solid var(--gfs); }
+
+  .temp-val { font-size: 3rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin: 5px 0; }
+  .label-mod { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+  .stat-box { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; text-align: center; border: 1px solid var(--border); }
+  .stat-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; }
+  .stat-value { font-size: 0.9rem; font-weight: 600; color: #fff; }
+
+  .loading-overlay { text-align: center; padding: 50px 0; }
+  .spinner { width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  iframe { width: 100%; height: 500px; border: none; border-radius: 16px; border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">METEO<span>AGRO</span></div>
+  </header>
+
+  <div class="gps-row">
+    <button class="btn-gps" onclick="getLocation()">📍 GPS</button>
+    <div class="loc-badge" id="coords">Brasília, DF</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(event, 'agora')">🌡️ AGORA</button>
+    <button class="tab" onclick="switchTab(event, 'modelos')">📡 MODELOS</button>
+    <button class="tab" onclick="switchTab(event, 'satelite')">🛰️ SATÉLITE</button>
+  </div>
+
+  <div id="loader" class="loading-overlay"><div class="spinner"></div>Sincronizando satélites...</div>
+
+  <div id="content" style="display:none">
+    <div id="agora" class="tab-content active">
+      <div class="card" style="background: linear-gradient(135deg, #0d2a4a 0%, #050d1a 100%);">
+        <div style="display:flex; justify-content:space-between">
+          <div>
+            <div class="label-mod">Temperatura Atual</div>
+            <div class="temp-val" id="mainTemp">--°</div>
+          </div>
+          <div style="font-size: 3rem" id="mainIcon">🌤️</div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-label">Umidade</div><div class="stat-value" id="mainHum">--</div></div>
+          <div class="stat-box"><div class="stat-label">Vento</div><div class="stat-value" id="mainWind">--</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="modelos" class="tab-content">
+      <div class="card ecmwf">
+        <div class="label-mod" style="color:var(--ecmwf)">Modelo Europeu (ECMWF)</div>
+        <div class="temp-val" id="tempEC">--°</div>
+        <div style="font-size:0.75rem; color:var(--muted)">Previsão de alta resolução IFS</div>
+      </div>
+      <div class="card gfs">
+        <div class="label-mod" style="color:var(--gfs)">Modelo Americano (GFS)</div>
+        <div class="temp-val" id="tempGFS">--°</div>
+        <div style="font-size:0.75rem; color:var(--muted)">Processamento NOAA Internacional</div>
+      </div>
+    </div>
+
+    <div id="satelite" class="tab-content">
+      <iframe id="windy"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+let lat = -15.78, lon = -47.93;
+
+async function fetchData() {
+  document.getElementById('loader').style.display = 'block';
+  document.getElementById('content').style.display = 'none';
+
+  try {
+    // Usando apenas os campos essenciais para evitar erro de tamanho de URL
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&models=ecmwf_ifs04,gfs_seamless&timezone=auto`;
+    
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Falha na API');
+    const data = await response.json();
+
+    // Mapeamento dinâmico das chaves (o Open-Meteo as nomeia conforme os modelos pedidos)
+    const c = data.current;
+    const tEC = c.temperature_2m_ecmwf_ifs04;
+    const tGFS = c.temperature_2m_gfs_seamless;
+
+    // Atualiza Interface
+    document.getElementById('mainTemp').innerText = Math.round(tEC || tGFS) + "°";
+    document.getElementById('mainHum').innerText = (c.relative_humidity_2m_ecmwf_ifs04 || c.relative_humidity_2m_gfs_seamless) + "%";
+    document.getElementById('mainWind').innerText = (c.wind_speed_10m_ecmwf_ifs04 || c.wind_speed_10m_gfs_seamless) + " km/h";
+
+    document.getElementById('tempEC').innerText = tEC ? Math.round(tEC) + "°" : "N/A";
+    document.getElementById('tempGFS').innerText = tGFS ? Math.round(tGFS) + "°" : "N/A";
+
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    
+    // Atualiza o Satélite de forma preguiçosa
+    updateWindy();
+
+  } catch (error) {
+    console.error(error);
+    document.getElementById('loader').innerHTML = "<span style='color:var(--accent2)'>⚠️ Erro de conexão. Tente novamente.</span>";
+  }
+}
+
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(p => {
+      lat = p.coords.latitude;
+      lon = p.coords.longitude;
+      document.getElementById('coords').innerText = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      fetchData();
+    }, () => alert("GPS negado ou indisponível."));
+  }
+}
+
+function switchTab(e, tabId) {
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  e.currentTarget.classList.add('active');
+}
+
+function updateWindy() {
+  const frame = document.getElementById('windy');
+  if(!frame.src) {
+    frame.src = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&zoom=5&level=surface&overlay=radar&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
+  }
+}
+
+// Inicia automático
+fetchData();
+</script>
+</body>
+</html>
