@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MarcoAgro – Pontos de Campo</title>
+<link rel="manifest" id="manifest-placeholder">
+<meta name="theme-color" content="#1a3a1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MarcoAgro">
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --verde: #2d6a2d;
+    --verde-escuro: #1a3a1a;
+    --verde-claro: #4a9e4a;
+    --terra: #8b5e3c;
+    --amarelo: #e8c84a;
+    --bg: #0f1f0f;
+    --bg2: #162216;
+    --card: #1e2e1e;
+    --borda: #2d4a2d;
+    --texto: #e8f0e8;
+    --texto2: #9ab89a;
+    --danger: #e05050;
+    --success: #4ac44a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--texto);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--verde-escuro);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--verde);
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--verde-claro);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--texto);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--amarelo); }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-icon {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--texto);
+    cursor: pointer;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    display: flex; align-items: center; gap: 6px;
+    transition: all 0.2s;
+  }
+  .btn-icon:hover { background: var(--verde); border-color: var(--verde-claro); }
+  .btn-icon.destaque { background: var(--verde); border-color: var(--verde-claro); color: #fff; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--borda);
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--texto2);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .tab.ativo {
+    color: var(--amarelo);
+    border-bottom-color: var(--amarelo);
+    background: var(--card);
+  }
+
+  /* CONTEÚDO */
+  .conteudo {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pagina { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .pagina.ativa { display: flex; }
+
+  /* MAPA */
+  #mapa {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .mapa-overlay {
+    position: absolute;
+    bottom: 80px;
+    right: 12px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fab {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    transition: transform 0.2s;
+  }
+  .fab:active { transform: scale(0.92); }
+  .fab-principal { background: var(--verde-claro); color: #fff; width: 60px; height: 60px; font-size: 24px; }
+  .fab-gps { background: var(--card); border: 1px solid var(--borda); color: var(--amarelo); }
+  .fab-loc { background: var(--card); border: 1px solid var(--borda); color: #4db8ff; }
+
+  @keyframes pulseRing {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+  .loc-pulse-ring {
+    position: absolute;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: rgba(77,184,255,0.4);
+    animation: pulseRing 1.5s ease-out infinite;
+  }
+
+  /* MODAL NOVO PONTO */
+  .modal-bg {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 2000;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-bg.aberto { display: flex; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--borda);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px 32px;
+    width: 100%;
+    max-width: 520px;
+    animation: slideUp 0.3s ease;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .categorias-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .cat-btn {
+    background: var(--card);
+    border: 2px solid var(--borda);
+    border-radius: 12px;
+    padding: 10px 6px;
+    color: var(--texto);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-size: 11px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .cat-btn .cat-icon { font-size: 24px; display: block; margin-bottom: 4px; }
+  .cat-btn:hover, .cat-btn.selecionado {
+    border-color: var(--verde-claro);
+    background: rgba(74,158,74,0.15);
+    color: var(--amarelo);
+  }
+
+  .form-group { margin-bottom: 12px; }
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--texto2);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .form-group input, .form-group textarea, .form-group select {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--texto);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+  }
+  .form-group textarea { height: 70px; resize: none; }
+
+  .coords-display {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--texto2);
+    font-family: monospace;
+  }
+  .coords-display.ok { border-color: var(--success); color: var(--success); }
+  .coords-display.erro { border-color: var(--danger); color: var(--danger); }
+
+  .modal-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .btn-cancelar {
+    flex: 1;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    color: var(--texto2);
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+  }
+
+  .btn-salvar {
+    flex: 2;
+    padding: 14px;
+    background: var(--verde-claro);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .btn-salvar:active { opacity: 0.85; }
+
+  /* LISTA */
+  .lista-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .lista-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 0 2px;
+  }
+
+  .contador {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    color: var(--texto2);
+  }
+  .contador span { color: var(--amarelo); font-weight: 700; }
+
+  .filtro-status {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .filtro-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--borda);
+    background: var(--card);
+    color: var(--texto2);
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .filtro-btn.ativo { background: var(--verde); border-color: var(--verde-claro); color: #fff; }
+
+  .ponto-card {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: border-color 0.2s;
+  }
+  .ponto-card.resolvido { opacity: 0.55; }
+  .ponto-card:hover { border-color: var(--verde-claro); }
+
+  .ponto-icone {
+    font-size: 28px;
+    flex-shrink: 0;
+    width: 44px; height: 44px;
+    background: var(--bg);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .ponto-info { flex: 1; min-width: 0; }
+
+  .ponto-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .ponto-nome {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+
+  .ponto-status {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .status-pendente { background: rgba(232,200,74,0.15); color: var(--amarelo); border: 1px solid rgba(232,200,74,0.3); }
+  .status-resolvido { background: rgba(74,196,74,0.15); color: var(--success); border: 1px solid rgba(74,196,74,0.3); }
+
+  .ponto-cat {
+    font-size: 11px;
+    color: var(--texto2);
+    margin-bottom: 4px;
+  }
+
+  .ponto-obs {
+    font-size: 12px;
+    color: var(--texto2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ponto-coords {
+    font-size: 10px;
+    color: var(--verde-claro);
+    font-family: monospace;
+    margin-top: 4px;
+  }
+
+  .ponto-acoes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .btn-acao {
+    background: var(--bg);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--texto);
+    transition: all 0.2s;
+  }
+  .btn-acao:hover { border-color: var(--verde-claro); }
+  .btn-acao.resolver { color: var(--success); }
+  .btn-acao.remover { color: var(--danger); }
+  .btn-acao.localizar { color: var(--amarelo); }
+
+  .vazio {
+    text-align: center;
+    padding: 48px 16px;
+    color: var(--texto2);
+  }
+  .vazio .vazio-icon { font-size: 48px; margin-bottom: 12px; }
+  .vazio h3 { font-family: 'Syne', sans-serif; font-size: 16px; margin-bottom: 6px; color: var(--texto); }
+  .vazio p { font-size: 13px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--verde);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 3000;
+    opacity: 0;
+    transition: all 0.3s;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* POPUP LEAFLET customizado */
+  .leaflet-popup-content-wrapper {
+    background: var(--bg2) !important;
+    border: 1px solid var(--borda) !important;
+    border-radius: 12px !important;
+    color: var(--texto) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+  }
+  .leaflet-popup-tip { background: var(--bg2) !important; }
+  .leaflet-popup-content { margin: 12px !important; }
+
+  .popup-titulo { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; }
+  .popup-cat { font-size: 11px; color: var(--texto2); margin: 2px 0 6px; }
+  .popup-obs { font-size: 12px; color: var(--texto2); }
+
+  /* Tooltip clique no mapa */
+  .tooltip-click {
+    background: var(--verde-escuro) !important;
+    border: 1px solid var(--amarelo) !important;
+    color: var(--amarelo) !important;
+    font-size: 11px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    border-radius: 8px !important;
+    padding: 4px 10px !important;
+    white-space: nowrap;
+  }
+  .tooltip-click::before { display: none !important; }
+
+  /* Dica flutuante no mapa */
+  .mapa-dica {
+    position: absolute;
+    top: 54px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(26,58,26,0.92);
+    border: 1px solid var(--amarelo);
+    color: var(--amarelo);
+    font-size: 11px;
+    font-family: 'DM Sans', sans-serif;
+    padding: 5px 14px;
+    border-radius: 20px;
+    z-index: 998;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--borda); border-radius: 4px; }
+
+  /* Mapa wrapper */
+  .mapa-wrapper {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .install-banner {
+    display: none;
+    background: var(--verde-escuro);
+    border-top: 1px solid var(--verde);
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--texto2);
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .install-banner.show { display: flex; }
+  .btn-instalar {
+    background: var(--verde-claro);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* PDF preview modal */
+  .pdf-modal-bg {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 2500;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .pdf-modal-bg.aberto { display: flex; }
+  .pdf-modal {
+    background: var(--bg2);
+    border: 1px solid var(--borda);
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+  }
+  .pdf-modal h3 { font-family: 'Syne', sans-serif; font-size: 16px; margin-bottom: 8px; }
+  .pdf-modal p { font-size: 13px; color: var(--texto2); margin-bottom: 16px; }
+  .pdf-progress {
+    background: var(--card);
+    border-radius: 6px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .pdf-progress-bar {
+    height: 100%;
+    background: var(--verde-claro);
+    border-radius: 6px;
+    width: 0%;
+    transition: width 0.3s;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📍</div>
+    <div class="logo-text">Marco<span>Agro</span></div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-icon" onclick="abrirPdfModal()" title="Exportar PDF">
+      📄 PDF
+    </button>
+    <button class="btn-icon destaque" onclick="abrirModal()" title="Novo ponto">
+      + Ponto
+    </button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab ativo" onclick="mudarTab('mapa', this)">🗺️ MAPA</div>
+  <div class="tab" onclick="mudarTab('lista', this)">📋 LISTA</div>
+</div>
+
+<div class="conteudo">
+
+  <!-- ABA MAPA -->
+  <div class="pagina ativa" id="pag-mapa">
+    <div class="mapa-wrapper">
+      <div id="mapa"></div>
+      <div class="mapa-dica">👆 Toque no mapa para marcar um ponto</div>
+      <div class="mapa-overlay">
+        <button class="fab fab-gps" onclick="centralizarGPS()" title="Minha localização">📡</button>
+        <button class="fab fab-loc" onclick="mostrarMinhaLocalizacao()" title="Ver minha posição no mapa">📍</button>
+        <button class="fab fab-principal" onclick="abrirModalGPS()" title="Marcar ponto aqui">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA LISTA -->
+  <div class="pagina" id="pag-lista">
+    <div class="lista-container">
+      <div class="lista-header">
+        <div class="contador">Total: <span id="total-pontos">0</span> pontos</div>
+        <div style="font-size:11px;color:var(--texto2)" id="pendentes-count"></div>
+      </div>
+      <div class="filtro-status">
+        <button class="filtro-btn ativo" onclick="filtrar('todos', this)">Todos</button>
+        <button class="filtro-btn" onclick="filtrar('pendente', this)">⏳ Pendentes</button>
+        <button class="filtro-btn" onclick="filtrar('resolvido', this)">✅ Resolvidos</button>
+      </div>
+      <div id="lista-pontos"></div>
+    </div>
+  </div>
+</div>
+
+<!-- INSTALL BANNER -->
+<div class="install-banner" id="install-banner">
+  <span>📲 Instalar MarcoAgro no celular</span>
+  <button class="btn-instalar" id="btn-instalar">Instalar</button>
+</div>
+
+<!-- MODAL NOVO PONTO -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="modal-title">📍 Novo Ponto de Campo</div>
+
+    <div class="categorias-grid" id="categorias-grid">
+      <button class="cat-btn selecionado" data-cat="Toco" onclick="selecionarCat(this)">
+        <span class="cat-icon">🪵</span>Toco
+      </button>
+      <button class="cat-btn" data-cat="Formigueiro" onclick="selecionarCat(this)">
+        <span class="cat-icon">🐜</span>Formigueiro
+      </button>
+      <button class="cat-btn" data-cat="Erosão" onclick="selecionarCat(this)">
+        <span class="cat-icon">⛰️</span>Erosão
+      </button>
+      <button class="cat-btn" data-cat="Praga/Doença" onclick="selecionarCat(this)">
+        <span class="cat-icon">🦟</span>Praga/Doença
+      </button>
+      <button class="cat-btn" data-cat="Falha de Plantio" onclick="selecionarCat(this)">
+        <span class="cat-icon">🌱</span>Falha Plantio
+      </button>
+      <button class="cat-btn" data-cat="Cerca Danificada" onclick="selecionarCat(this)">
+        <span class="cat-icon">🚧</span>Cerca
+      </button>
+      <button class="cat-btn" data-cat="Dreno/Vala" onclick="selecionarCat(this)">
+        <span class="cat-icon">💧</span>Dreno/Vala
+      </button>
+      <button class="cat-btn" data-cat="Armadilha" onclick="selecionarCat(this)">
+        <span class="cat-icon">🪤</span>Armadilha
+      </button>
+      <button class="cat-btn" data-cat="Rede de Energia" onclick="selecionarCat(this)">
+        <span class="cat-icon">⚡</span>Rede Energia
+      </button>
+      <button class="cat-btn" data-cat="Outros" onclick="selecionarCat(this)">
+        <span class="cat-icon">📌</span>Outros
+      </button>
+    </div>
+
+    <div class="form-group">
+      <label>Nome / Identificação</label>
+      <input type="text" id="input-nome" placeholder="Ex: Toco grande próximo ao açude">
+    </div>
+
+    <div class="form-group">
+      <label>Observação (opcional)</label>
+      <textarea id="input-obs" placeholder="Detalhes sobre o ponto..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>📡 Coordenadas GPS</label>
+      <div class="coords-display" id="coords-display">Obtendo localização...</div>
+      <button class="btn-icon" style="margin-top:8px;width:100%;justify-content:center" onclick="obterGPS()">
+        📡 Atualizar GPS
+      </button>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-salvar" onclick="salvarPonto()">✅ Salvar Ponto</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PDF -->
+<div class="pdf-modal-bg" id="pdf-modal-bg">
+  <div class="pdf-modal">
+    <h3>📄 Exportar Relatório PDF</h3>
+    <p id="pdf-msg">Gerando mapa com todos os marcos de campo...</p>
+    <div class="pdf-progress">
+      <div class="pdf-progress-bar" id="pdf-bar"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-cancelar" onclick="fecharPdfModal()" style="flex:1;padding:12px;background:transparent;border:1px solid var(--borda);border-radius:10px;color:var(--texto2);cursor:pointer;font-family:'DM Sans',sans-serif">Cancelar</button>
+      <button id="btn-gerar-pdf" class="btn-salvar" style="flex:2" onclick="gerarPDF()">📄 Gerar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== DADOS =====
+let pontos = JSON.parse(localStorage.getItem('marcosagro_pontos') || '[]');
+let filtroAtual = 'todos';
+let catSelecionada = 'Toco';
+let coordsAtual = null;
+let mapa = null;
+let marcadores = {};
+let deferredPrompt = null;
+let clickCoords = null;
+
+const ICONES_CAT = {
+  'Toco': '🪵',
+  'Formigueiro': '🐜',
+  'Erosão': '⛰️',
+  'Praga/Doença': '🦟',
+  'Falha de Plantio': '🌱',
+  'Cerca Danificada': '🚧',
+  'Dreno/Vala': '💧',
+  'Armadilha': '🪤',
+  'Rede de Energia': '⚡',
+  'Outros': '📌'
+};
+
+const COR_CAT = {
+  'Toco': '#8b5e3c',
+  'Formigueiro': '#e05050',
+  'Erosão': '#a07850',
+  'Praga/Doença': '#c050c0',
+  'Falha de Plantio': '#50c050',
+  'Cerca Danificada': '#e08030',
+  'Dreno/Vala': '#4090e0',
+  'Armadilha': '#e0c040',
+  'Rede de Energia': '#f0c020',
+  'Outros': '#808080'
+};
+
+// ===== MAPA =====
+function iniciarMapa() {
+  mapa = L.map('mapa', { zoomControl: true }).setView([-15.7801, -47.9292], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 20
+  }).addTo(mapa);
+
+  // satélite toggle
+  const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Esri',
+    maxZoom: 20
+  });
+
+  let usandoSat = false;
+  const btnSat = L.control({ position: 'topleft' });
+  btnSat.onAdd = function() {
+    const div = L.DomUtil.create('div');
+    div.innerHTML = '<button onclick="toggleSatelite()" style="background:#1e2e1e;border:1px solid #2d4a2d;border-radius:8px;padding:6px 10px;color:#e8f0e8;cursor:pointer;font-size:12px;font-family:Syne,sans-serif">🛰️ Satélite</button>';
+    return div;
+  };
+  btnSat.addTo(mapa);
+
+  window.toggleSatelite = function() {
+    usandoSat = !usandoSat;
+    if (usandoSat) satelite.addTo(mapa);
+    else mapa.removeLayer(satelite);
+  };
+
+  // Marcador temporário de seleção
+  let pinTemp = null;
+
+  mapa.on('click', function(e) {
+    clickCoords = e.latlng;
+
+    // Remove pin temporário anterior
+    if (pinTemp) { mapa.removeLayer(pinTemp); pinTemp = null; }
+
+    // Mostra pin temporário no local clicado
+    const pinIcon = L.divIcon({
+      html: `<div style="position:relative">
+        <div style="width:28px;height:28px;background:#e8c84a;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 10px rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center">
+          <span style="transform:rotate(45deg);font-size:13px">➕</span>
+        </div>
+      </div>`,
+      className: '',
+      iconSize: [28, 28],
+      iconAnchor: [14, 28]
+    });
+    pinTemp = L.marker(e.latlng, { icon: pinIcon }).addTo(mapa);
+
+    // Mostra tooltip rápido
+    pinTemp.bindTooltip('Toque novamente ou clique em +', {
+      permanent: true, direction: 'top', offset: [0, -30],
+      className: 'tooltip-click'
+    }).openTooltip();
+
+    // Abre modal após 400ms (dá tempo de ver o pin)
+    setTimeout(() => {
+      if (pinTemp) { mapa.removeLayer(pinTemp); pinTemp = null; }
+      coordsAtual = { lat: e.latlng.lat, lng: e.latlng.lng, acc: 0 };
+      abrirModalComCoords(e.latlng);
+    }, 500);
+  });
+
+  renderizarMarcadores();
+  centralizarGPS();
+}
+
+function criarIconeCustom(cat, resolvido) {
+  const emoji = ICONES_CAT[cat] || '📌';
+  const cor = resolvido ? '#4ac44a' : (COR_CAT[cat] || '#4a9e4a');
+  return L.divIcon({
+    html: `<div style="background:${cor};border:3px solid #fff;border-radius:50% 50% 50% 0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.5)"><span style="transform:rotate(45deg)">${emoji}</span></div>`,
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+  });
+}
+
+function renderizarMarcadores() {
+  // Limpa marcadores existentes
+  Object.values(marcadores).forEach(m => mapa.removeLayer(m));
+  marcadores = {};
+
+  pontos.forEach(p => {
+    const icone = criarIconeCustom(p.categoria, p.status === 'resolvido');
+    const m = L.marker([p.lat, p.lng], { icon: icone }).addTo(mapa);
+    m.bindPopup(`
+      <div class="popup-titulo">${ICONES_CAT[p.categoria] || '📌'} ${p.nome}</div>
+      <div class="popup-cat">${p.categoria}</div>
+      ${p.obs ? `<div class="popup-obs">${p.obs}</div>` : ''}
+      <div style="margin-top:6px;font-size:10px;color:${p.status==='resolvido'?'#4ac44a':'#e8c84a'};font-weight:600">${p.status==='resolvido'?'✅ Resolvido':'⏳ Pendente'}</div>
+    `);
+    marcadores[p.id] = m;
+  });
+}
+
+// ===== GPS =====
+function obterGPS() {
+  const el = document.getElementById('coords-display');
+  el.textContent = '📡 Obtendo localização...';
+  el.className = 'coords-display';
+
+  if (!navigator.geolocation) {
+    usarCoordsClick(el);
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      coordsAtual = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+      el.textContent = `✅ Lat: ${coordsAtual.lat.toFixed(6)}, Lng: ${coordsAtual.lng.toFixed(6)} (±${Math.round(coordsAtual.acc)}m)`;
+      el.className = 'coords-display ok';
+    },
+    err => { usarCoordsClick(el); },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function usarCoordsClick(el) {
+  if (coordsAtual) {
+    el.textContent = `📌 ${coordsAtual.acc === 0 ? 'Clique no mapa' : 'GPS'}: ${coordsAtual.lat.toFixed(6)}, ${coordsAtual.lng.toFixed(6)}`;
+    el.className = 'coords-display ok';
+  } else {
+    el.textContent = '⚠️ GPS indisponível – toque no mapa para definir posição';
+    el.className = 'coords-display erro';
+  }
+}
+
+function abrirModalComCoords(latlng) {
+  catSelecionada = 'Toco';
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selecionado'));
+  document.querySelector('[data-cat="Toco"]').classList.add('selecionado');
+  document.getElementById('input-nome').value = '';
+  document.getElementById('input-obs').value = '';
+  document.getElementById('modal-bg').classList.add('aberto');
+
+  // Exibe as coordenadas do clique direto
+  const el = document.getElementById('coords-display');
+  el.textContent = `📌 Clique no mapa: ${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+  el.className = 'coords-display ok';
+}
+
+function centralizarGPS() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    if (mapa) mapa.setView([pos.coords.latitude, pos.coords.longitude], 16);
+  });
+}
+
+let marcadorLocalizacao = null;
+let watchId = null;
+
+function mostrarMinhaLocalizacao() {
+  if (!navigator.geolocation) {
+    mostrarToast('❌ GPS não disponível neste dispositivo');
+    return;
+  }
+
+  mostrarToast('📍 Buscando localização...');
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
+
+      // Remove marcador anterior
+      if (marcadorLocalizacao) {
+        mapa.removeLayer(marcadorLocalizacao);
+        marcadorLocalizacao = null;
+      }
+
+      // Ícone pulsante de localização atual
+      const locIcon = L.divIcon({
+        html: `<div style="position:relative;width:20px;height:20px;display:flex;align-items:center;justify-content:center">
+          <div class="loc-pulse-ring" style="position:absolute;top:2px;left:2px"></div>
+          <div style="width:16px;height:16px;background:#4db8ff;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.5);z-index:2"></div>
+        </div>`,
+        className: '',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -12]
+      });
+
+      marcadorLocalizacao = L.marker([lat, lng], { icon: locIcon }).addTo(mapa);
+      marcadorLocalizacao.bindPopup(`
+        <div class="popup-titulo">📍 Minha Localização</div>
+        <div class="popup-cat">Posição atual</div>
+        <div class="popup-obs" style="font-family:monospace;font-size:11px">Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}</div>
+        <div style="margin-top:6px;font-size:10px;color:#4db8ff">±${Math.round(acc)}m de precisão</div>
+      `).openPopup();
+
+      mapa.setView([lat, lng], 17);
+      mostrarToast(`✅ Localizado! (±${Math.round(acc)}m)`);
+
+      // Salva para uso na marcação de ponto
+      coordsAtual = { lat, lng, acc };
+    },
+    err => {
+      let msg = '❌ Não foi possível obter localização';
+      if (err.code === 1) msg = '❌ Permissão de GPS negada';
+      else if (err.code === 3) msg = '⏱️ Tempo esgotado – tente novamente';
+      mostrarToast(msg);
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+  );
+}
+
+// ===== MODAL =====
+function abrirModal() {
+  catSelecionada = 'Toco';
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selecionado'));
+  document.querySelector('[data-cat="Toco"]').classList.add('selecionado');
+  document.getElementById('input-nome').value = '';
+  document.getElementById('input-obs').value = '';
+  document.getElementById('modal-bg').classList.add('aberto');
+  obterGPS();
+}
+
+function abrirModalGPS() {
+  // Usa última posição do clique no mapa
+  abrirModal();
+}
+
+function fecharModal() {
+  document.getElementById('modal-bg').classList.remove('aberto');
+}
+
+function selecionarCat(btn) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selecionado'));
+  btn.classList.add('selecionado');
+  catSelecionada = btn.dataset.cat;
+}
+
+function salvarPonto() {
+  const nome = document.getElementById('input-nome').value.trim();
+  if (!nome) { mostrarToast('⚠️ Digite um nome para o ponto'); return; }
+  if (!coordsAtual) { mostrarToast('⚠️ Aguarde o GPS ou toque no mapa'); return; }
+
+  const ponto = {
+    id: Date.now().toString(),
+    nome,
+    categoria: catSelecionada,
+    obs: document.getElementById('input-obs').value.trim(),
+    lat: coordsAtual.lat,
+    lng: coordsAtual.lng,
+    acc: coordsAtual.acc || 0,
+    status: 'pendente',
+    data: new Date().toLocaleDateString('pt-BR'),
+    hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  pontos.unshift(ponto);
+  salvarDados();
+  fecharModal();
+  renderizarLista();
+  renderizarMarcadores();
+  mostrarToast('✅ Ponto salvo com sucesso!');
+
+  // Centraliza no ponto
+  if (mapa) mapa.setView([ponto.lat, ponto.lng], 17);
+
+  // Muda para aba mapa
+  document.querySelector('.tab.ativo').classList.remove('ativo');
+  document.querySelectorAll('.tab')[0].classList.add('ativo');
+  document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
+  document.getElementById('pag-mapa').classList.add('ativa');
+  setTimeout(() => mapa.invalidateSize(), 100);
+}
+
+// ===== LISTA =====
+function renderizarLista() {
+  const container = document.getElementById('lista-pontos');
+  const total = pontos.length;
+  const pendentes = pontos.filter(p => p.status === 'pendente').length;
+
+  document.getElementById('total-pontos').textContent = total;
+  document.getElementById('pendentes-count').textContent = pendentes > 0 ? `${pendentes} pendente${pendentes > 1 ? 's' : ''}` : '';
+
+  const filtrados = filtroAtual === 'todos' ? pontos :
+    pontos.filter(p => p.status === filtroAtual);
+
+  if (filtrados.length === 0) {
+    container.innerHTML = `
+      <div class="vazio">
+        <div class="vazio-icon">📍</div>
+        <h3>${total === 0 ? 'Nenhum ponto marcado' : 'Nenhum ponto nessa categoria'}</h3>
+        <p>${total === 0 ? 'Vá ao mapa e toque em + para marcar o primeiro ponto' : 'Mude o filtro acima'}</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtrados.map(p => `
+    <div class="ponto-card ${p.status === 'resolvido' ? 'resolvido' : ''}" id="card-${p.id}">
+      <div class="ponto-icone">${ICONES_CAT[p.categoria] || '📌'}</div>
+      <div class="ponto-info">
+        <div class="ponto-top">
+          <div class="ponto-nome">${p.nome}</div>
+          <span class="ponto-status ${p.status === 'resolvido' ? 'status-resolvido' : 'status-pendente'}">
+            ${p.status === 'resolvido' ? '✅ Resolvido' : '⏳ Pendente'}
+          </span>
+        </div>
+        <div class="ponto-cat">${p.categoria} • ${p.data} ${p.hora}</div>
+        ${p.obs ? `<div class="ponto-obs">${p.obs}</div>` : ''}
+        <div class="ponto-coords">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div>
+      </div>
+      <div class="ponto-acoes">
+        <button class="btn-acao localizar" onclick="localizarPonto('${p.id}')" title="Ver no mapa">🗺️</button>
+        <button class="btn-acao resolver" onclick="alternarStatus('${p.id}')" title="${p.status === 'resolvido' ? 'Reabrir' : 'Resolver'}">
+          ${p.status === 'resolvido' ? '↩️' : '✅'}
+        </button>
+        <button class="btn-acao remover" onclick="removerPonto('${p.id}')" title="Remover">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filtrar(f, btn) {
+  filtroAtual = f;
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  renderizarLista();
+}
+
+function alternarStatus(id) {
+  const p = pontos.find(x => x.id === id);
+  if (!p) return;
+  p.status = p.status === 'resolvido' ? 'pendente' : 'resolvido';
+  salvarDados();
+  renderizarLista();
+  renderizarMarcadores();
+  mostrarToast(p.status === 'resolvido' ? '✅ Marcado como resolvido' : '↩️ Reaberto');
+}
+
+function removerPonto(id) {
+  if (!confirm('Remover este ponto?')) return;
+  pontos = pontos.filter(p => p.id !== id);
+  salvarDados();
+  renderizarLista();
+  renderizarMarcadores();
+  mostrarToast('🗑️ Ponto removido');
+}
+
+function localizarPonto(id) {
+  const p = pontos.find(x => x.id === id);
+  if (!p || !mapa) return;
+  mudarTab('mapa', document.querySelectorAll('.tab')[0]);
+  setTimeout(() => {
+    mapa.invalidateSize();
+    mapa.setView([p.lat, p.lng], 18);
+    if (marcadores[id]) marcadores[id].openPopup();
+  }, 150);
+}
+
+// ===== TABS =====
+function mudarTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  document.querySelectorAll('.pagina').forEach(p => p.classList.remove('ativa'));
+  document.getElementById('pag-' + tab).classList.add('ativa');
+  if (tab === 'mapa') setTimeout(() => mapa.invalidateSize(), 100);
+  if (tab === 'lista') renderizarLista();
+}
+
+// ===== PDF =====
+function abrirPdfModal() {
+  if (pontos.length === 0) { mostrarToast('⚠️ Nenhum ponto para exportar'); return; }
+  document.getElementById('pdf-modal-bg').classList.add('aberto');
+  document.getElementById('pdf-bar').style.width = '0%';
+  document.getElementById('pdf-msg').textContent = `${pontos.length} pontos prontos para exportar`;
+}
+
+function fecharPdfModal() {
+  document.getElementById('pdf-modal-bg').classList.remove('aberto');
+}
+
+async function gerarPDF() {
+  const btn = document.getElementById('btn-gerar-pdf');
+  btn.disabled = true;
+  btn.textContent = '⏳ Gerando...';
+  const bar = document.getElementById('pdf-bar');
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, H = 297;
+    const margin = 14;
+
+    // Captura o mapa como imagem
+    bar.style.width = '20%';
+    document.getElementById('pdf-msg').textContent = 'Capturando mapa...';
+
+    await new Promise(r => setTimeout(r, 200));
+
+    // Captura via canvas do Leaflet
+    let mapaImagem = null;
+    try {
+      const mapCanvas = document.querySelector('#mapa canvas');
+      if (mapCanvas) {
+        mapaImagem = mapCanvas.toDataURL('image/jpeg', 0.8);
+      }
+    } catch(e) {}
+
+    bar.style.width = '40%';
+
+    // ===== CABEÇALHO =====
+    doc.setFillColor(26, 58, 26);
+    doc.rect(0, 0, W, 28, 'F');
+
+    doc.setTextColor(232, 200, 74);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('MarcoAgro', margin, 12);
+
+    doc.setTextColor(232, 240, 232);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Relatório de Pontos de Campo', margin, 19);
+
+    const agora = new Date();
+    const dataStr = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    doc.text(`Gerado em: ${dataStr} às ${horaStr}`, W - margin, 19, { align: 'right' });
+
+    // ===== RESUMO =====
+    bar.style.width = '50%';
+    let y = 36;
+
+    const pendentes = pontos.filter(p => p.status === 'pendente').length;
+    const resolvidos = pontos.filter(p => p.status === 'resolvido').length;
+
+    // Caixas de resumo
+    const boxW = (W - margin * 2 - 8) / 3;
+    const boxes = [
+      { label: 'Total de Pontos', valor: pontos.length.toString(), cor: [45, 106, 45] },
+      { label: 'Pendentes', valor: pendentes.toString(), cor: [180, 140, 30] },
+      { label: 'Resolvidos', valor: resolvidos.toString(), cor: [40, 140, 40] }
+    ];
+
+    boxes.forEach((b, i) => {
+      const x = margin + i * (boxW + 4);
+      doc.setFillColor(...b.cor);
+      doc.roundedRect(x, y, boxW, 18, 3, 3, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(b.valor, x + boxW / 2, y + 11, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text(b.label, x + boxW / 2, y + 16, { align: 'center' });
+    });
+
+    y += 24;
+
+    // ===== MAPA =====
+    bar.style.width = '60%';
+    document.getElementById('pdf-msg').textContent = 'Gerando mapa estático...';
+
+    // Gera mapa estático via OpenStreetMap
+    const mapaH = 90;
+    if (pontos.length > 0) {
+      // Calcula bounds
+      const lats = pontos.map(p => p.lat);
+      const lngs = pontos.map(p => p.lng);
+      const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+      const cLat = (minLat + maxLat) / 2;
+      const cLng = (minLng + maxLng) / 2;
+
+      // Usa StaticMap via OpenStreetMap (sem API key)
+      // Vamos desenhar um mapa SVG representativo
+      const mapW = W - margin * 2;
+
+      // Fundo do mapa
+      doc.setFillColor(200, 220, 200);
+      doc.roundedRect(margin, y, mapW, mapaH, 4, 4, 'F');
+      doc.setDrawColor(45, 106, 45);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(margin, y, mapW, mapaH, 4, 4, 'S');
+
+      // Grade do mapa
+      doc.setDrawColor(180, 210, 180);
+      doc.setLineWidth(0.2);
+      for (let gx = margin + 15; gx < margin + mapW; gx += 15) {
+        doc.line(gx, y, gx, y + mapaH);
+      }
+      for (let gy = y + 10; gy < y + mapaH; gy += 10) {
+        doc.line(margin, gy, margin + mapW, gy);
+      }
+
+      // Título do mapa
+      doc.setFillColor(26, 58, 26);
+      doc.rect(margin, y, mapW, 8, 'F');
+      doc.setTextColor(232, 200, 74);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.text('🗺  MAPA DE PONTOS GEORREFERENCIADOS', margin + mapW / 2, y + 5.5, { align: 'center' });
+
+      // Plota os pontos no mapa
+      const padMap = 15;
+      const plotW = mapW - padMap * 2;
+      const plotH = mapaH - padMap - 8;
+
+      const latRange = (maxLat - minLat) || 0.001;
+      const lngRange = (maxLng - minLng) || 0.001;
+
+      pontos.forEach(p => {
+        const px = margin + padMap + ((p.lng - minLng) / lngRange) * plotW;
+        const py = y + 8 + padMap + (1 - (p.lat - minLat) / latRange) * plotH;
+
+        // Pin
+        const cor = p.status === 'resolvido' ? [74, 196, 74] : (() => {
+          const c = COR_CAT[p.categoria] || '#4a9e4a';
+          return [parseInt(c.slice(1,3),16), parseInt(c.slice(3,5),16), parseInt(c.slice(5,7),16)];
+        })();
+
+        doc.setFillColor(...cor);
+        doc.circle(px, py, 2.5, 'F');
+        doc.setFillColor(255, 255, 255);
+        doc.circle(px, py, 1, 'F');
+
+        // Label pequeno
+        doc.setTextColor(30, 30, 30);
+        doc.setFontSize(5);
+        doc.setFont('helvetica', 'normal');
+        const label = p.nome.length > 12 ? p.nome.substring(0, 12) + '…' : p.nome;
+        doc.text(label, px + 3, py + 1);
+      });
+
+      // Legenda no mapa
+      const legY = y + mapaH - 8;
+      doc.setFillColor(255, 255, 255, 0.8);
+      doc.rect(margin + 2, legY - 2, 60, 7, 'F');
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(5.5);
+      doc.text(`Centro: ${cLat.toFixed(4)}, ${cLng.toFixed(4)}`, margin + 4, legY + 2);
+
+      y += mapaH + 8;
+    }
+
+    // ===== TABELA DE PONTOS =====
+    bar.style.width = '75%';
+    document.getElementById('pdf-msg').textContent = 'Montando tabela de pontos...';
+
+    // Título da seção
+    doc.setFillColor(45, 106, 45);
+    doc.rect(margin, y, W - margin * 2, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LISTA DE PONTOS', margin + 4, y + 5.5);
+    y += 11;
+
+    // Cabeçalho da tabela
+    const cols = [
+      { label: '#', w: 8 },
+      { label: 'Categoria', w: 30 },
+      { label: 'Nome / Identificação', w: 65 },
+      { label: 'Status', w: 22 },
+      { label: 'Coordenadas', w: 40 },
+      { label: 'Data', w: 17 }
+    ];
+
+    doc.setFillColor(30, 46, 30);
+    doc.rect(margin, y, W - margin * 2, 7, 'F');
+    doc.setTextColor(200, 230, 200);
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'bold');
+
+    let xc = margin + 2;
+    cols.forEach(c => {
+      doc.text(c.label, xc, y + 5);
+      xc += c.w;
+    });
+    y += 7;
+
+    // Linhas
+    pontos.forEach((p, i) => {
+      if (y > H - 20) {
+        doc.addPage();
+        y = 20;
+        // Cabeçalho na nova página
+        doc.setFillColor(30, 46, 30);
+        doc.rect(margin, y - 7, W - margin * 2, 7, 'F');
+        doc.setTextColor(200, 230, 200);
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'bold');
+        let xcc = margin + 2;
+        cols.forEach(c => { doc.text(c.label, xcc, y - 2); xcc += c.w; });
+      }
+
+      const bg = i % 2 === 0 ? [245, 250, 245] : [230, 240, 230];
+      doc.setFillColor(...bg);
+      doc.rect(margin, y, W - margin * 2, 7, 'F');
+
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'normal');
+
+      let xr = margin + 2;
+
+      // Número
+      doc.text(`${i + 1}`, xr, y + 5); xr += 8;
+
+      // Categoria
+      doc.text(p.categoria, xr, y + 5); xr += 30;
+
+      // Nome
+      const nomeClip = p.nome.length > 35 ? p.nome.substring(0, 35) + '…' : p.nome;
+      doc.text(nomeClip, xr, y + 5); xr += 65;
+
+      // Status
+      if (p.status === 'resolvido') {
+        doc.setTextColor(40, 140, 40);
+        doc.setFont('helvetica', 'bold');
+      } else {
+        doc.setTextColor(180, 140, 0);
+        doc.setFont('helvetica', 'bold');
+      }
+      doc.text(p.status === 'resolvido' ? 'Resolvido' : 'Pendente', xr, y + 5);
+      doc.setTextColor(30, 30, 30);
+      doc.setFont('helvetica', 'normal');
+      xr += 22;
+
+      // Coords
+      doc.text(`${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`, xr, y + 5); xr += 40;
+
+      // Data
+      doc.text(p.data, xr, y + 5);
+
+      // Observação (linha extra se houver)
+      if (p.obs) {
+        y += 7;
+        doc.setFillColor(...bg);
+        doc.rect(margin, y, W - margin * 2, 5, 'F');
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(5.5);
+        const obsClip = p.obs.length > 80 ? p.obs.substring(0, 80) + '…' : p.obs;
+        doc.text(`   Obs: ${obsClip}`, margin + 10, y + 3.5);
+        doc.setFontSize(6);
+      }
+
+      y += 7;
+    });
+
+    // ===== RODAPÉ =====
+    bar.style.width = '90%';
+    const pages = doc.getNumberOfPages();
+    for (let pg = 1; pg <= pages; pg++) {
+      doc.setPage(pg);
+      doc.setFillColor(26, 58, 26);
+      doc.rect(0, H - 10, W, 10, 'F');
+      doc.setTextColor(154, 184, 154);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.text('MarcoAgro – Pontos de Campo', margin, H - 4);
+      doc.text(`Pág. ${pg} / ${pages}`, W - margin, H - 4, { align: 'right' });
+    }
+
+    bar.style.width = '100%';
+    document.getElementById('pdf-msg').textContent = '✅ PDF gerado com sucesso!';
+
+    const fileName = `MarcoAgro_Pontos_${dataStr.replace(/\//g, '-')}.pdf`;
+    doc.save(fileName);
+
+    setTimeout(() => {
+      fecharPdfModal();
+      mostrarToast('📄 PDF exportado com sucesso!');
+    }, 800);
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById('pdf-msg').textContent = '❌ Erro ao gerar PDF: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '📄 Tentar novamente';
+  }
+}
+
+// ===== UTILS =====
+function salvarDados() {
+  localStorage.setItem('marcosagro_pontos', JSON.stringify(pontos));
+}
+
+function mostrarToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ===== PWA =====
+const manifest = {
+  name: 'MarcoAgro – Pontos de Campo',
+  short_name: 'MarcoAgro',
+  start_url: '.',
+  display: 'standalone',
+  background_color: '#0f1f0f',
+  theme_color: '#1a3a1a',
+  icons: [
+    { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231a3a1a'/><text y='130' x='96' font-size='120' text-anchor='middle'>📍</text></svg>", sizes: '192x192', type: 'image/svg+xml' }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+document.getElementById('manifest-placeholder').href = URL.createObjectURL(blob);
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').classList.add('show');
+  document.getElementById('btn-instalar').onclick = async () => {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') document.getElementById('install-banner').classList.remove('show');
+    deferredPrompt = null;
+  };
+});
+
+// ===== SERVICE WORKER =====
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'marcosagro-v1';
+    const URLS = ['/'];
+    self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(URLS))));
+    self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+  `;
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  iniciarMapa();
+  renderizarLista();
+});
+</script>
+</body>
+</html>
