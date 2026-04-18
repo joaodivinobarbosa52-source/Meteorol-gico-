@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeteoAgro — Satélites Internacionais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050d1a;
+    --bg2: #081527;
+    --bg3: #0d1f38;
+    --card: rgba(13,31,56,0.85);
+    --border: rgba(56,139,253,0.18);
+    --accent: #38b6ff;
+    --accent2: #ff7b2f;
+    --ecmwf: #4ade80;
+    --gfs: #fb923c;
+    --text: #e2eaf4;
+    --muted: #7a9abf;
+    --rain: #60a5fa;
+    --danger: #f87171;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 10%, rgba(255,255,255,0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 70%, rgba(255,255,255,0.2) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 0 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 3px;
+    background: linear-gradient(90deg, var(--accent), #7dd3fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo span {
+    background: linear-gradient(90deg, var(--accent2), #fbbf24);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .location-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+    background: var(--bg3);
+    border-radius: 12px;
+    padding: 5px;
+    border: 1px solid var(--border);
+  }
+
+  .tab {
+    flex: 1;
+    padding: 9px 4px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform:none; } }
+
+  .hero-card {
+    background: linear-gradient(135deg, #0d2a4a 0%, #0a1f36 60%, #071428 100%);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .hero-temp {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5.5rem;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .hero-temp sup {
+    font-size: 2rem;
+    vertical-align: top;
+    color: var(--accent);
+  }
+
+  .hero-icon {
+    font-size: 4.5rem;
+    filter: drop-shadow(0 0 20px rgba(56,182,255,0.3));
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .hero-stat {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .hero-stat .label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .hero-stat .value { font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 600; }
+
+  .model-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .model-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
+  .model-card.ecmwf { border-top: 3px solid var(--ecmwf); }
+  .model-card.gfs   { border-top: 3px solid var(--gfs); }
+
+  .hourly-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+
+  .hour-card {
+    flex-shrink: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    text-align: center;
+    min-width: 75px;
+  }
+
+  .sat-frame {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: #000;
+    height: 500px;
+  }
+
+  .sat-frame iframe { width: 100%; height: 100%; border: none; }
+
+  .gps-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 13px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--accent);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  .loading { display: flex; flex-direction: column; align-items: center; padding: 60px 0; }
+  .spinner { width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    .hero-grid { grid-template-columns: repeat(2,1fr); }
+    .model-row { grid-template-columns: 1fr; }
+    .hero-temp { font-size: 4rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">Meteo<span>Agro</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="gps-btn" id="gpsBtn" onclick="requestGPS()">📍 GPS</button>
+      <div class="location-bar" id="locText">Brasil</div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('agora')">🌡️ Agora</button>
+    <button class="tab" onclick="showTab('previsao')">📅 7 Dias</button>
+    <button class="tab" onclick="showTab('modelos')">📡 Modelos</button>
+    <button class="tab" onclick="showTab('satelite')">🛰️ Satélite</button>
+  </div>
+
+  <div id="tab-agora" class="tab-content active">
+    <div id="hero-loading" class="loading"><div class="spinner"></div></div>
+    <div id="hero-content" style="display:none">
+      <div class="hero-card">
+        <div class="hero-top">
+          <div>
+            <div class="hero-temp" id="hTemp">--<sup>°C</sup></div>
+            <div id="hDesc">Buscando...</div>
+          </div>
+          <div class="hero-icon" id="hIcon">🌤️</div>
+        </div>
+        <div class="hero-grid">
+          <div class="hero-stat"><div class="label">Sensação</div><div class="value" id="hFeel">--</div></div>
+          <div class="hero-stat"><div class="label">Umidade</div><div class="value" id="hHum">--</div></div>
+          <div class="hero-stat"><div class="label">Vento</div><div class="value" id="hWind">--</div></div>
+          <div class="hero-stat"><div class="label">Chuva 1h</div><div class="value" id="hRain">--</div></div>
+        </div>
+      </div>
+      <h3 style="margin-bottom:10px; font-size:0.9rem; color:var(--muted)">PREVISÃO POR HORA (INTERNACIONAL)</h3>
+      <div class="hourly-scroll" id="hourlyScroll"></div>
+    </div>
+  </div>
+
+  <div id="tab-previsao" class="tab-content">
+    <div id="dailyList"></div>
+  </div>
+
+  <div id="tab-modelos" class="tab-content">
+    <div class="model-row">
+      <div class="model-card ecmwf">
+        <h4 style="color:var(--ecmwf)">EUROPEU (ECMWF)</h4>
+        <div style="font-size:2rem; margin:10px 0" id="ecTemp">--°</div>
+        <p style="font-size:0.8rem" id="ecDetails">Precisão Global IFS</p>
+      </div>
+      <div class="model-card gfs">
+        <h4 style="color:var(--gfs)">AMERICANO (GFS)</h4>
+        <div style="font-size:2rem; margin:10px 0" id="gfsTemp">--°</div>
+        <p style="font-size:0.8rem" id="gfsDetails">Modelo NOAA Internacional</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-satelite" class="tab-content">
+    <div class="sat-frame">
+      <iframe id="windyFrame" src=""></iframe>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let LAT = -15.7801; 
+let LON = -47.9292; 
+
+async function init() {
+  await updateWeather();
+}
+
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id === 'satelite') updateSatellite();
+}
+
+async function requestGPS() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      LAT = pos.coords.latitude;
+      LON = pos.coords.longitude;
+      document.getElementById('locText').textContent = LAT.toFixed(2) + ", " + LON.toFixed(2);
+      updateWeather();
+    });
+  }
+}
+
+async function updateWeather() {
+  document.getElementById('hero-loading').style.display = 'flex';
+  document.getElementById('hero-content').style.display = 'none';
+
+  try {
+    // Busca dados dos dois maiores satélites (ECMWF e GFS) simultaneamente
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code,precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&models=ecmwf_ifs04,gfs_seamless`;
+    
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    renderWeather(data);
+    updateSatellite();
+
+    document.getElementById('hero-loading').style.display = 'none';
+    document.getElementById('hero-content').style.display = 'block';
+  } catch (e) {
+    console.error("Erro ao buscar dados internacionais", e);
+  }
+}
+
+function renderWeather(data) {
+  // Dados Europeus (ECMWF) como base principal
+  const cur = data.current;
+  document.getElementById('hTemp').innerHTML = Math.round(cur.temperature_2m) + "<sup>°C</sup>";
+  document.getElementById('hFeel').textContent = Math.round(cur.apparent_temperature) + "°";
+  document.getElementById('hHum').textContent = cur.relative_humidity_2m + "%";
+  document.getElementById('hWind').textContent = cur.wind_speed_10m + " km/h";
+  document.getElementById('hRain').textContent = cur.precipitation + " mm";
+  
+  // Comparação de Modelos
+  document.getElementById('ecTemp').textContent = Math.round(cur.temperature_2m) + "°";
+  document.getElementById('gfsTemp').textContent = Math.round(data.current.temperature_2m) + "°";
+
+  // Previsão Horária
+  const scroll = document.getElementById('hourlyScroll');
+  scroll.innerHTML = '';
+  for(let i=0; i<24; i++) {
+    const item = document.createElement('div');
+    item.className = 'hour-card';
+    item.innerHTML = `
+      <div style="font-size:0.7rem; color:var(--muted)">${i}:00</div>
+      <div style="font-size:1.2rem">🌡️</div>
+      <div style="font-weight:600">${Math.round(data.hourly.temperature_2m[i])}°</div>
+      <div style="font-size:0.6rem; color:var(--rain)">${data.hourly.precipitation_probability[i]}%</div>
+    `;
+    scroll.appendChild(item);
+  }
+}
+
+function updateSatellite() {
+  // Link dinâmico para o satélite internacional focado na localização do usuário
+  const frame = document.getElementById('windyFrame');
+  frame.src = `https://embed.windy.com/embed2.html?lat=${LAT}&lon=${LON}&zoom=5&level=surface&overlay=clouds&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
+}
+
+init();
+</script>
+</body>
+</html>
