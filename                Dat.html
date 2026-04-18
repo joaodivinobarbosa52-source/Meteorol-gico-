@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AgroSat - Monitoramento Agrícola por Satélite</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --green: #1a6b2a;
+            --green2: #27a845;
+            --accent: #f5c518;
+            --sky: #0a1a0f;
+            --panel: #0f1e14;
+            --card: #1a2e20;
+            --border: #2a4a32;
+            --text: #e8f0ea;
+            --muted: #7aaa86;
+            --rain: #4fc3f7;
+            --hot: #ef5350;
+            --cold: #42a5f5;
+            --handle: #3d6b4a;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: 'Barlow', sans-serif;
+            background: var(--sky);
+            color: var(--text);
+        }
+
+        #map {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+
+        /* Topbar */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: linear-gradient(to bottom, rgba(10,26,15,0.95) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .logo {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            background: var(--green2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .logo-text {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--accent);
+            text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        }
+
+        .logo-sub {
+            font-size: 0.6rem;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+        }
+
+        .topbar-right {
+            pointer-events: auto;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-fab {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            backdrop-filter: blur(8px);
+            transition: transform 0.15s, opacity 0.15s;
+            background: rgba(0,0,0,0.7);
+            color: white;
+        }
+
+        .btn-fab:active {
+            transform: scale(0.95);
+        }
+
+        .btn-fab:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-gps {
+            background: var(--accent);
+            color: var(--sky);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+        }
+
+        .btn-layers {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Localização Pill */
+        .loc-pill {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(10,26,15,0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 0.75rem;
+            color: var(--muted);
+            white-space: nowrap;
+            max-width: 85vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+            font-weight: 500;
+        }
+
+        /* Drawer de Camadas */
+        .drawer-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 15;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .drawer-overlay.open {
+            display: block;
+        }
+
+        .layer-drawer {
+            position: fixed;
+            top: 0;
+            right: -280px;
+            width: 260px;
+            height: 100%;
+            z-index: 20;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            padding: 70px 16px 24px;
+            transition: right 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+        }
+
+        .layer-drawer.open {
+            right: 0;
+        }
+
+        .layer-drawer h4 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            border: 1px solid transparent;
+            transition: background 0.15s;
+        }
+
+        .layer-item:hover {
+            background: var(--card);
+        }
+
+        .layer-item.active {
+            background: var(--card);
+            border-color: var(--green2);
+        }
+
+        .layer-item .li-icon {
+            font-size: 1.1rem;
+        }
+
+        .layer-item .li-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .layer-item .li-check {
+            margin-left: auto;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .layer-item.active .li-check {
+            background: var(--green2);
+            border-color: var(--green2);
+            color: white;
+        }
+
+        /* Bottom Sheet */
+        .sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10;
+            background: var(--panel);
+            border-radius: 20px 20px 0 0;
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 30px rgba(0,0,0,0.5);
+            transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 80vh;
+        }
+
+        .sheet.collapsed {
+            transform: translateY(calc(100% - 70px));
+        }
+
+        .sheet.open {
+            transform: translateY(0);
+        }
+
+        .sheet-handle-area {
+            padding: 10px 16px 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .sheet-handle-bar {
+            width: 40px;
+            height: 4px;
+            background: var(--handle);
+            border-radius: 2px;
+            margin: 0 auto 10px;
+        }
+
+        .sheet-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 4px 12px;
+        }
+
+        .weather-now {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .weather-icon-big {
+            font-size: 2rem;
+        }
+
+        .weather-temp {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .weather-desc {
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .weather-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-align: right;
+        }
+
+        .weather-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .sheet-body {
+            overflow-y: auto;
+            max-height: calc(80vh - 95px);
+            padding: 0 16px 20px;
+        }
+
+        .section-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin: 16px 0 10px;
+        }
+
+        /* Scroll horizontal */
+        .hourly-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+        }
+
+        .hourly-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .h-card {
+            min-width: 65px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 6px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .h-card.now {
+            border-color: var(--green2);
+        }
+
+        .h-card .h-time {
+            font-size: 0.65rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .h-card .h-icon {
+            font-size: 1.2rem;
+        }
+
+        .h-card .h-temp {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .h-card .h-rain {
+            font-size: 0.6rem;
+            color: var(--rain);
+            margin-top: 3px;
+        }
+
+        /* Dias */
+        .day-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 6px;
+        }
+
+        .day-label {
+            min-width: 85px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .day-icon {
+            font-size: 1.1rem;
+        }
+
+        .day-rain {
+            font-size: 0.7rem;
+            color: var(--rain);
+            flex: 1;
+        }
+
+        .day-temps {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .th {
+            color: var(--hot);
+        }
+
+        .tl {
+            color: var(--cold);
+        }
+
+        .sep {
+            color: var(--border);
+        }
+
+        /* Gráfico de chuva */
+        .rain-chart-wrap {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .rain-alert {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: rgba(79,195,247,0.12);
+            border: 1px solid rgba(79,195,247,0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            color: var(--rain);
+            margin-bottom: 12px;
+        }
+
+        .rain-alert.visible {
+            display: flex;
+        }
+
+        .rain-no-rain {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: rgba(39,168,69,0.1);
+            border: 1px solid rgba(39,168,69,0.25);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            color: var(--green2);
+            margin-bottom: 12px;
+        }
+
+        .rain-no-rain.visible {
+            display: flex;
+        }
+
+        .rain-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 70px;
+        }
+
+        .rain-bar-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            height: 100%;
+            justify-content: flex-end;
+        }
+
+        .rain-bar {
+            width: 100%;
+            border-radius: 3px 3px 0 0;
+            min-height: 2px;
+        }
+
+        .rain-bar-label {
+            font-size: 0.55rem;
+            color: var(--muted);
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .rain-bar-val {
+            font-size: 0.6rem;
+            color: var(--rain);
+            min-height: 12px;
+        }
+
+        .loading-txt {
+            font-size: 0.8rem;
+            color: var(--muted);
+            text-align: center;
+            padding: 16px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top-color: var(--green2);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Ajustes Leaflet */
+        .leaflet-control-zoom {
+            margin-bottom: 85px !important;
+        }
+
+        @media (min-width: 768px) {
+            .sheet {
+                max-height: 65vh;
+            }
+            .sheet-body {
+                max-height: calc(65vh - 95px);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Topbar -->
+<div class="topbar">
+    <div class="logo">
+        <div class="logo-icon">🛰️</div>
+        <div>
+            <div class="logo-text">AGROSAT</div>
+            <div class="logo-sub">Monitoramento Agrícola</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <button class="btn-fab btn-layers" id="btnLayers">☰</button>
+        <button class="btn-fab btn-gps" id="btnGps">📍</button>
+    </div>
+</div>
+
+<div class="loc-pill" id="locPill">📍 Toque no botão GPS para sua localização</div>
+
+<!-- Drawer de Camadas -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="layer-drawer" id="layerDrawer">
+    <h4>Camadas do Mapa</h4>
+    <div class="layer-item active" data-layer="goes">
+        <span class="li-icon">🛰️</span>
+        <span class="li-label">GOES-16 Satélite</span>
+        <span class="li-check">✓</span>
+    </div>
+    <div class="layer-item" data-layer="rain">
+        <span class="li-icon">🌧️</span>
+        <span class="li-label">Radar de Chuva</span>
+        <span class="li-check"></span>
+    </div>
+    <div class="layer-item" data-layer="lst">
+        <span class="li-icon">🌡️</span>
+        <span class="li-label">Temperatura do Solo</span>
+        <span class="li-check"></span>
+    </div>
+</div>
+
+<!-- Bottom Sheet -->
+<div class="sheet collapsed" id="sheet">
+    <div class="sheet-handle-area" id="sheetHandle">
+        <div class="sheet-handle-bar"></div>
+        <div class="sheet-header">
+            <div class="weather-now">
+                <div class="weather-icon-big" id="nowIcon">—</div>
+                <div>
+                    <div class="weather-temp" id="nowTemp">—°C</div>
+                    <div class="weather-desc" id="nowDesc">Clique em 📍</div>
+                </div>
+            </div>
+            <div class="weather-meta">
+                <span>💧 <span id="nowRain">—mm</span></span>
+                <span>💨 <span id="nowHum">—%</span></span>
+            </div>
+        </div>
+    </div>
+    <div class="sheet-body">
+        <div class="section-label">Previsão de Chuva — Próximas 12 Horas</div>
+        <div class="rain-chart-wrap">
+            <div class="rain-alert" id="rainAlert">
+                <span>🌧️</span>
+                <span id="rainAlertMsg">Chuva prevista</span>
+            </div>
+            <div class="rain-no-rain" id="rainNoRain">
+                <span>✅</span>
+                <span>Sem chuva nas próximas 12h</span>
+            </div>
+            <div class="rain-bars" id="rainBars">
+                <div class="loading-txt">Aguardando localização...</div>
+            </div>
+        </div>
+
+        <div class="section-label">Hoje — Hora a Hora</div>
+        <div class="hourly-scroll" id="hourlyForecast">
+            <div class="loading-txt">Aguardando localização...</div>
+        </div>
+
+        <div class="section-label">Previsão para 7 Dias</div>
+        <div id="dailyForecast">
+            <div class="loading-txt">Aguardando localização...</div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    // ==================== INICIALIZAÇÃO DO MAPA ====================
+    let map, marker, currentPosition = null;
+    const defaultCoords = [-15.7942, -47.8822]; // Brasília
+    
+    map = L.map('map', { zoomControl: true }).setView(defaultCoords, 5);
+    
+    // Mapa base OSM
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // ==================== CAMADAS ====================
+    // GOES-16 (usando WMTS da NASA)
+    const goesLayer = L.tileLayer(
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/current/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+        {
+            attribution: 'NASA/NOAA GOES-16',
+            opacity: 0.7,
+            tileSize: 256,
+            maxNativeZoom: 9,
+            maxZoom: 18
+        }
+    );
+    
+    // Radar de Chuva RainViewer
+    const rainLayer = L.tileLayer(
+        'https://tilecache.rainviewer.com/v2/radar/nowcast/256/{z}/{x}/{y}/1/1_1.png',
+        {
+            attribution: 'RainViewer',
+            opacity: 0.6,
+            tileSize: 256,
+            maxZoom: 18
+        }
+    );
+    
+    // Temperatura do Solo MODIS
+    const lstLayer = L.tileLayer(
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Land_Surface_Temp_Day/default/current/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png',
+        {
+            attribution: 'NASA MODIS LST',
+            opacity: 0.65,
+            tileSize: 256,
+            maxNativeZoom: 7,
+            maxZoom: 18
+        }
+    );
+    
+    const layerMap = { goes: goesLayer, rain: rainLayer, lst: lstLayer };
+    const layerState = { goes: true, rain: false, lst: false };
+    
+    function updateLayerVisibility() {
+        Object.keys(layerMap).forEach(key => {
+            if (layerState[key]) {
+                if (!map.hasLayer(layerMap[key])) {
+                    layerMap[key].addTo(map);
+                }
+            } else {
+                if (map.hasLayer(layerMap[key])) {
+                    map.removeLayer(layerMap[key]);
+                }
+            }
+        });
+    }
+    
+    function toggleLayer(layerId) {
+        layerState[layerId] = !layerState[layerId];
+        
+        // Atualiza UI do drawer
+        const drawerItem = document.querySelector(`.layer-item[data-layer="${layerId}"]`);
+        if (drawerItem) {
+            drawerItem.classList.toggle('active', layerState[layerId]);
+            const checkSpan = drawerItem.querySelector('.li-check');
+            if (checkSpan) checkSpan.textContent = layerState[layerId] ? '✓' : '';
+        }
+        
+        updateLayerVisibility();
+    }
+    
+    // Event listeners das camadas
+    document.querySelectorAll('.layer-item[data-layer]').forEach(btn => {
+        btn.addEventListener('click', () => toggleLayer(btn.dataset.layer));
+    });
+    
+    updateLayerVisibility();
+    
+    // ==================== DRAWER FUNCTIONS ====================
+    function toggleDrawer() {
+        document.getElementById('layerDrawer').classList.toggle('open');
+        document.getElementById('drawerOverlay').classList.toggle('open');
+    }
+    
+    function closeDrawer() {
+        document.getElementById('layerDrawer').classList.remove('open');
+        document.getElementById('drawerOverlay').classList.remove('open');
+    }
+    
+    document.getElementById('btnLayers').addEventListener('click', toggleDrawer);
+    document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
+    
+    // ==================== BOTTOM SHEET ====================
+    let sheetOpen = false;
+    const sheet = document.getElementById('sheet');
+    const sheetHandle = document.getElementById('sheetHandle');
+    
+    sheetHandle.addEventListener('click', () => {
+        sheetOpen = !sheetOpen;
+        sheet.classList.toggle('collapsed', !sheetOpen);
+        sheet.classList.toggle('open', sheetOpen);
+    });
+    
+    // ==================== FUNÇÕES CLIMÁTICAS ====================
+    function wmoIcon(code) {
+        if (code === 0) return '☀️';
+        if (code <= 2) return '⛅';
+        if (code <= 3) return '☁️';
+        if (code <= 49) return '🌫️';
+        if (code <= 59) return '🌦️';
+        if (code <= 69) return '🌧️';
+        if (code <= 79) return '❄️';
+        if (code <= 82) return '⛈️';
+        return '🌩️';
+    }
+    
+    function wmoDesc(code) {
+        if (code === 0) return 'Céu limpo';
+        if (code <= 2) return 'Parcialmente nublado';
+        if (code <= 3) return 'Nublado';
+        if (code <= 49) return 'Neblina';
+        if (code <= 59) return 'Garoa';
+        if (code <= 69) return 'Chuva';
+        if (code <= 79) return 'Neve';
+        if (code <= 82) return 'Tempestade';
+        return 'Trovoada';
+    }
+    
+    function renderRainChart(data, startIndex) {
+        const barsDiv = document.getElementById('rainBars');
+        const alertEl = document.getElementById('rainAlert');
+        const noRainEl = document.getElementById('rainNoRain');
+        
+        if (!barsDiv) return;
+        barsDiv.innerHTML = '';
+        
+        const hours = [];
+        for (let i = startIndex; i < startIndex + 12 && i < data.hourly.time.length; i++) {
+            hours.push({
+                time: data.hourly.time[i].slice(11, 16),
+                prec: data.hourly.precipitation[i] ?? 0,
+                isNow: i === startIndex
+            });
+        }
+        
+        const maxPrec = Math.max(...hours.map(h => h.prec), 0.5);
+        const totalRain = hours.reduce((s, h) => s + h.prec, 0);
+        const firstRainHour = hours.find(h => h.prec >= 0.1);
+        
+        if (alertEl) alertEl.classList.toggle('visible', totalRain >= 0.1);
+        if (noRainEl) noRainEl.classList.toggle('visible', totalRain < 0.1);
+        
+        if (firstRainHour && alertEl) {
+            const msgEl = document.getElementById('rainAlertMsg');
+            if (msgEl) msgEl.textContent = `${totalRain.toFixed(1)}mm previstos — começa às ${firstRainHour.time}`;
+        }
+        
+        hours.forEach(h => {
+            const pct = Math.min(Math.max((h.prec / maxPrec) * 100, h.prec > 0 ? 6 : 2), 100);
+            let barColor;
+            if (h.prec < 0.1) barColor = 'rgba(42,74,50,0.6)';
+            else if (h.prec < 1) barColor = 'rgba(79,195,247,0.5)';
+            else if (h.prec < 5) barColor = 'rgba(79,195,247,0.75)';
+            else if (h.prec < 15) barColor = 'rgba(41,182,246,1)';
+            else barColor = 'rgba(3,155,229,1)';
+            
+            const valLabel = h.prec >= 0.1 ? h.prec.toFixed(1) : '';
+            barsDiv.innerHTML += `
+                <div class="rain-bar-col${h.isNow ? ' now' : ''}">
+                    <div class="rain-bar-val">${valLabel}</div>
+                    <div class="rain-bar" style="height:${pct}%; background:${barColor};"></div>
+                    <div class="rain-bar-label">${h.isNow ? 'Agora' : h.time}</div>
+                </div>`;
+        });
+    }
+    
+    function renderWeatherData(data) {
+        const nowHour = new Date().getHours();
+        let nowIndex = data.hourly.time.findIndex(t => parseInt(t.slice(11, 13)) === nowHour);
+        if (nowIndex === -1) nowIndex = 0;
+        
+        const curCode = data.current_weather?.weathercode ?? data.hourly.weathercode?.[nowIndex] ?? 0;
+        const curTemp = Math.round(data.current_weather?.temperature ?? data.hourly.temperature_2m[nowIndex]);
+        const curPrec = (data.hourly.precipitation[nowIndex] ?? 0).toFixed(1);
+        const curHum = data.hourly.relative_humidity_2m[nowIndex] ?? '—';
+        
+        // Atualiza header do sheet
+        document.getElementById('nowIcon').textContent = wmoIcon(curCode);
+        document.getElementById('nowTemp').textContent = curTemp + '°C';
+        document.getElementById('nowDesc').textContent = wmoDesc(curCode);
+        document.getElementById('nowRain').textContent = curPrec + 'mm';
+        document.getElementById('nowHum').textContent = curHum + '%';
+        
+        // Gráfico de chuva
+        renderRainChart(data, nowIndex);
+        
+        // Previsão hora a hora
+        const hourlyDiv = document.getElementById('hourlyForecast');
+        if (hourlyDiv) hourlyDiv.innerHTML = '';
+        
+        for (let i = 0; i < 24; i++) {
+            const timeStr = data.hourly.time[i];
+            const hour = timeStr.slice(11, 16);
+            const temp = Math.round(data.hourly.temperature_2m[i]);
+            const prec = (data.hourly.precipitation[i] ?? 0).toFixed(1);
+            const icon = wmoIcon(data.hourly.weathercode?.[i] ?? 0);
+            const isNow = parseInt(hour) === nowHour;
+            
+            const cardHtml = `
+                <div class="h-card${isNow ? ' now' : ''}">
+                    <div class="h-time">${isNow ? 'Agora' : hour}</div>
+                    <div class="h-icon">${icon}</div>
+                    <div class="h-temp">${temp}°</div>
+                    <div class="h-rain">💧${prec}mm</div>
+                </div>`;
+            
+            if (hourlyDiv) hourlyDiv.innerHTML += cardHtml;
+        }
+        
+        // Previsão 7 dias
+        const dailyDiv = document.getElementById('dailyForecast');
+        if (dailyDiv) dailyDiv.innerHTML = '';
+        
+        data.daily.time.forEach((dayStr, i) => {
+            const [y, m, d] = dayStr.split('-').map(Number);
+            const date = new Date(y, m - 1, d);
+            const label = date.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+            const tmax = Math.round(data.daily.temperature_2m_max[i]);
+            const tmin = Math.round(data.daily.temperature_2m_min[i]);
+            const prec = (data.daily.precipitation_sum[i] ?? 0).toFixed(1);
+            const icon = wmoIcon(data.daily.weathercode?.[i] ?? 0);
+            
+            const rowHtml = `
+                <div class="day-row">
+                    <span class="day-label">${label}</span>
+                    <span class="day-icon">${icon}</span>
+                    <span class="day-rain">💧${prec}mm</span>
+                    <span class="day-temps">
+                        <span class="th">${tmax}°</span>
+                        <span class="sep"> / </span>
+                        <span class="tl">${tmin}°</span>
+                    </span>
+                </div>`;
+            
+            if (dailyDiv) dailyDiv.innerHTML += rowHtml;
+        });
+    }
+    
+    function setLoading() {
+        const hourlyDiv = document.getElementById('hourlyForecast');
+        const dailyDiv = document.getElementById('dailyForecast');
+        const rainBars = document.getElementById('rainBars');
+        
+        if (hourlyDiv) hourlyDiv.innerHTML = '<div class="loading-txt"><span class="spinner"></span>Carregando...</div>';
+        if (dailyDiv) dailyDiv.innerHTML = '<div class="loading-txt"><span class="spinner"></span>Carregando...</div>';
+        if (rainBars) rainBars.innerHTML = '<div class="loading-txt"><span class="spinner"></span>Aguardando dados...</div>';
+    }
+    
+    function setError(msg) {
+        const hourlyDiv = document.getElementById('hourlyForecast');
+        const dailyDiv = document.getElementById('dailyForecast');
+        
+        if (hourlyDiv) hourlyDiv.innerHTML = `<div class="loading-txt" style="color:#ef5350;">⚠️ ${msg}</div>`;
+        if (dailyDiv) dailyDiv.innerHTML = `<div class="loading-txt" style="color:#ef5350;">⚠️ ${msg}</div>`;
+    }
+    
+    async function getWeatherData(lat, lon) {
+        setLoading();
+        
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weathercode&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=auto&forecast_days=7&current_weather=true`;
+            
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeout);
+            
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            
+            if (!data.hourly || !data.daily) throw new Error('Dados incompletos');
+            
+            renderWeatherData(data);
+            
+            // Abre o sheet no mobile
+            if (window.innerWidth < 768) {
+                sheetOpen = true;
+                sheet.classList.remove('collapsed');
+                sheet.classList.add('open');
+            }
+            
+        } catch (err) {
+            console.error('Erro ao buscar clima:', err);
+            const msg = err.name === 'AbortError' ? 'Tempo esgotado. Verifique sua conexão.' : 'Erro ao carregar dados. Tente novamente.';
+            setError(msg);
+        }
+    }
+    
+    // ==================== GEOLOCALIZAÇÃO ====================
+    async function getLocation() {
+        const gpsBtn = document.getElementById('btnGps');
+        const locPill = document.getElementById('locPill');
+        
+        gpsBtn.textContent = '⏳';
+        gpsBtn.disabled = true;
+        locPill.textContent = '📍 Obtendo localização...';
+        
+        if (!navigator.geolocation) {
+            locPill.textContent = '❌ Geolocalização não suportada';
+            gpsBtn.textContent = '📍';
+            gpsBtn.disabled = false;
+            return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const { latitude, longitude } = pos.coords;
+                currentPosition = { lat: latitude, lon: longitude };
+                
+                map.setView([latitude, longitude], 12);
+                
+                if (marker) map.removeLayer(marker);
+                marker = L.marker([latitude, longitude]).addTo(map)
+                    .bindPopup('📍 Sua localização')
+                    .openPopup();
+                
+                // Busca nome da cidade
+                try {
+                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=pt`);
+                    const geoData = await geoRes.json();
+                    const cidade = geoData.address?.city || geoData.address?.town || geoData.address?.village || '';
+                    const estado = geoData.address?.state || '';
+                    locPill.textContent = cidade ? `📍 ${cidade}${estado ? ` - ${estado}` : ''}` : `📍 ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                } catch {
+                    locPill.textContent = `📍 ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                }
+                
+                await getWeatherData(latitude, longitude);
+                
+                gpsBtn.textContent = '📍';
+                gpsBtn.disabled = false;
+            },
+            (error) => {
+                console.error('Erro de geolocalização:', error);
+                let errorMsg = '❌ ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMsg += 'Permissão negada. Ative a localização.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMsg += 'Localização indisponível.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMsg += 'Tempo esgotado.';
+                        break;
+                    default:
+                        errorMsg += 'Erro ao obter localização.';
+                }
+                locPill.textContent = errorMsg + ' Usando Brasília.';
+                
+                // Fallback para Brasília
+                await getWeatherData(defaultCoords[0], defaultCoords[1]);
+                map.setView(defaultCoords, 5);
+                
+                gpsBtn.textContent = '📍';
+                gpsBtn.disabled = false;
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+    
+    // Event listener do botão GPS
+    document.getElementById('btnGps').addEventListener('click', getLocation);
+    
+    console.log('🌱 AgroSat inicializado. Clique no botão 📍 para começar.');
+</script>
+</body>
+</html>
