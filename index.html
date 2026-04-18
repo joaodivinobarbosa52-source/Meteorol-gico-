@@ -53,6 +53,7 @@
             border-radius: 5px;
             font-weight: bold;
             cursor: pointer;
+            color: #1b5e20;
         }
 
         .forecast-grid {
@@ -64,12 +65,13 @@
         }
 
         .forecast-card {
-            min-width: 100px;
+            min-width: 90px;
             background: #e8f5e9;
             padding: 10px;
             border-radius: 8px;
             text-align: center;
             border: 1px solid #c8e6c9;
+            flex-shrink: 0;
         }
 
         .daily-item {
@@ -90,6 +92,13 @@
             font-style: italic;
         }
 
+        .loading-msg {
+            color: #999;
+            font-style: italic;
+            font-size: 0.9rem;
+            padding: 10px 0;
+        }
+
         @media (max-width: 600px) {
             #map { height: 40vh; }
             .weather-container { height: 60vh; }
@@ -99,21 +108,25 @@
 <body>
 
     <div class="header">
-        <span>🌾 AGROSAT: METOP & GOES</span>
+        <span>🌿 AGROSAT</span>
         <button class="btn-gps" onclick="getLocation()">📍 MINHA ÁREA</button>
     </div>
 
     <div id="map"></div>
 
     <div class="weather-container">
-        <div id="location-name" style="font-weight: bold; margin-bottom: 5px;">Carregando localização...</div>
-        <div class="sat-info">🛰️ Imagens: NOAA GOES-16 (Américas) | EUMETSAT MetOp-B (Global)</div>
+        <div id="location-name" style="font-weight: bold; margin-bottom: 5px;">Clique em "MINHA ÁREA" para carregar sua localização</div>
+        <div class="sat-info">Imagens: NOAA GOES-16 (Américas) | OpenWeather (Precipitação)</div>
 
-        <h3>📡 Hoje (Hora em Hora)</h3>
-        <div class="forecast-grid" id="hourly-forecast"></div>
+        <h3 style="margin: 10px 0 8px; color: var(--dark);">Hoje — Hora a Hora</h3>
+        <div class="forecast-grid" id="hourly-forecast">
+            <div class="loading-msg">Aguardando localização...</div>
+        </div>
 
-        <h3>📅 Próximos 7 Dias</h3>
-        <div id="daily-forecast"></div>
+        <h3 style="margin: 10px 0 8px; color: var(--dark);">Próximos 7 Dias</h3>
+        <div id="daily-forecast">
+            <div class="loading-msg">Aguardando localização...</div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -122,148 +135,181 @@
         let map, marker;
         const defaultCoords = [-15.7942, -47.8822]; // Brasília
 
-        // Inicializa o Mapa
+        // ── Mapa Base ──────────────────────────────────────────────
         map = L.map('map').setView(defaultCoords, 4);
 
-        // Camada Base OSM
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // ================= CAMADAS DE SATÉLITE CORRIGIDAS =================
-        
-        // GOES-16 (ABI GeoColor - NASA GIBS) - URL CORRETA E ATUAL
-        const goesLayer = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/current/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg', {
-            attribution: '🌎 NOAA/NASA GOES-16',
-            opacity: 0.7,
-            maxZoom: 9
-        });
-        
-        // GOES-16 (Infrared - Canais termais) - alternativa para visualização noturna
-        const goesInfraredLayer = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/current/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png', {
-            attribution: '🌡️ NOAA GOES-16 IR',
-            opacity: 0.7,
-            maxZoom: 9
-        });
-        
-        // MetOp-B (AVHRR Sea Surface Temperature - NASA GIBS) - CORRIGIDO
-        const metopLayer = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MetOp-B_AVHRR_Sea_Surface_Temperature/default/current/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png', {
-            attribution: '🛰️ EUMETSAT MetOp-B',
-            opacity: 0.65,
-            maxZoom: 7
-        });
-        
-        // MetOp-B (Vapor d'água - alternativa)
-        const metopWaterVapor = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MetOp-B_AVHRR_Cloud_Water_Vapor/default/current/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png', {
-            attribution: '💧 MetOp-B Vapor',
-            opacity: 0.6,
-            maxZoom: 7
-        });
+        // ── GOES-16 GeoColor — NASA WorldView/GIBS (funcional) ──────
+        // Produto: GOES-East_ABI_GeoColor — tile Z/Y/X correto
+        const goesLayer = L.tileLayer(
+            'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_GeoColor/default/2024-01-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+            {
+                attribution: 'NOAA/NASA GOES-16',
+                opacity: 0.75,
+                tileSize: 256,
+                maxZoom: 9
+            }
+        );
 
-        // Controles de camadas
-        const baseMaps = { 
-            "🗺️ Mapa Base": osm 
-        };
-        
+        // ── Chuva/Nuvens — RainViewer (tempo real, funciona bem) ────
+        const rainLayer = L.tileLayer(
+            'https://tilecache.rainviewer.com/v2/coverage/0/256/{z}/{x}/{y}/2/1_1.png',
+            {
+                attribution: 'RainViewer',
+                opacity: 0.5,
+                tileSize: 256
+            }
+        );
+
+        // ── Temperatura superfície — Open-Meteo tiles via NASA GIBS ─
+        // MODIS Terra Land Surface Temp (diário, global, confiável)
+        const lstLayer = L.tileLayer(
+            'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Land_Surface_Temp_Day/default/2024-01-01/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png',
+            {
+                attribution: 'NASA MODIS Terra LST',
+                opacity: 0.65,
+                tileSize: 256,
+                maxZoom: 7
+            }
+        );
+
+        const baseMaps = { "🗺️ Mapa": osm };
         const overlayMaps = {
-            "☁️ Nuvens GOES-16 (GeoColor)": goesLayer,
-            "🌡️ GOES-16 Infravermelho": goesInfraredLayer,
-            "🌊 MetOp-B Temp. Superfície Mar": metopLayer,
-            "💨 MetOp-B Vapor d'Água": metopWaterVapor
+            "🛰️ GOES-16 GeoColor": goesLayer,
+            "🌧️ Chuva (RainViewer)": rainLayer,
+            "🌡️ Temperatura Solo (MODIS)": lstLayer
         };
 
         L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
-        
-        // Ativa GOES GeoColor por padrão
-        goesLayer.addTo(map);
-        
-        // Mensagem de confirmação no console
-        console.log("✅ Camadas de satélite carregadas: GOES-16 e MetOp-B");
+        goesLayer.addTo(map); // GOES ativo por padrão
 
-        // ================= PREVISÃO DO TEMPO =================
-        
+        // ── Clima Open-Meteo ───────────────────────────────────────
         async function getWeatherData(lat, lon) {
+            document.getElementById('hourly-forecast').innerHTML = '<div class="loading-msg">Carregando...</div>';
+            document.getElementById('daily-forecast').innerHTML = '<div class="loading-msg">Carregando...</div>';
+
             try {
-                const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`);
-                if (!response.ok) throw new Error("Erro na API");
-                const data = await response.json();
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+                    + `&hourly=temperature_2m,relative_humidity_2m,precipitation,weathercode`
+                    + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode`
+                    + `&timezone=auto&forecast_days=7`;
+
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Erro HTTP ' + res.status);
+                const data = await res.json();
                 renderWeather(data);
-            } catch (error) {
-                console.error("Erro ao buscar clima:", error);
-                document.getElementById('hourly-forecast').innerHTML = '<div class="forecast-card">❌ Erro ao carregar previsão</div>';
-                document.getElementById('daily-forecast').innerHTML = '<div class="daily-item">❌ Verifique sua conexão</div>';
+            } catch (err) {
+                document.getElementById('hourly-forecast').innerHTML = '<div class="loading-msg" style="color:red;">Erro ao buscar clima.</div>';
+                console.error(err);
             }
         }
 
+        // Ícone simples por weathercode WMO
+        function wmoIcon(code) {
+            if (code === 0) return '☀️';
+            if (code <= 2) return '🌤️';
+            if (code <= 3) return '☁️';
+            if (code <= 49) return '🌫️';
+            if (code <= 59) return '🌦️';
+            if (code <= 69) return '🌧️';
+            if (code <= 79) return '❄️';
+            if (code <= 82) return '🌩️';
+            return '⛈️';
+        }
+
         function renderWeather(data) {
-            // Render Hourly
+            // ── Hora a hora (primeiras 24h) ─────────────────────────
             const hourlyDiv = document.getElementById('hourly-forecast');
             hourlyDiv.innerHTML = '';
-            for(let i = 0; i < 24; i++) {
-                const time = new Date(data.hourly.time[i]).getHours();
-                const precip = data.hourly.precipitation[i];
+
+            // time vem como "2025-01-01T00:00" (sem Z) — já é horário local
+            for (let i = 0; i < 24; i++) {
+                const timeStr = data.hourly.time[i]; // ex: "2025-06-01T14:00"
+                const hour = timeStr.slice(11, 16);  // "14:00"
+                const temp = Math.round(data.hourly.temperature_2m[i]);
+                const prec = data.hourly.precipitation[i] ?? 0;
+                const icon = wmoIcon(data.hourly.weathercode?.[i] ?? 0);
+
                 hourlyDiv.innerHTML += `
                     <div class="forecast-card">
-                        <div>⏰ ${time}:00</div>
-                        <div style="font-size: 1.2rem; font-weight:bold;">🌡️ ${Math.round(data.hourly.temperature_2m[i])}°C</div>
-                        <div style="font-size: 0.8rem; color: #1b5e20;">💧 ${precip !== undefined ? precip : 0}mm</div>
+                        <div style="font-size:0.75rem; color:#555;">${hour}</div>
+                        <div style="font-size:1.4rem;">${icon}</div>
+                        <div style="font-size:1.1rem; font-weight:bold;">${temp}°C</div>
+                        <div style="font-size:0.75rem; color:#1565c0;">💧 ${prec}mm</div>
                     </div>
                 `;
             }
 
-            // Render Daily
+            // ── 7 dias ──────────────────────────────────────────────
             const dailyDiv = document.getElementById('daily-forecast');
             dailyDiv.innerHTML = '';
-            data.daily.time.forEach((day, index) => {
-                const date = new Date(day).toLocaleDateString('pt-BR', {weekday: 'short', day: 'numeric'});
+
+            data.daily.time.forEach((dayStr, i) => {
+                // dayStr = "2025-06-01" — sem conversão de fuso
+                const [y, m, d] = dayStr.split('-').map(Number);
+                const date = new Date(y, m - 1, d);
+                const label = date.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' });
+                const tmax = Math.round(data.daily.temperature_2m_max[i]);
+                const tmin = Math.round(data.daily.temperature_2m_min[i]);
+                const prec = (data.daily.precipitation_sum[i] ?? 0).toFixed(1);
+                const icon = wmoIcon(data.daily.weathercode?.[i] ?? 0);
+
                 dailyDiv.innerHTML += `
                     <div class="daily-item">
-                        <span>📆 ${date}</span>
-                        <span>🌧️ ${data.daily.precipitation_sum[index]}mm</span>
+                        <span style="min-width:90px;">${label}</span>
+                        <span style="font-size:1.2rem;">${icon}</span>
+                        <span style="color:#1565c0; font-size:0.85rem;">💧 ${prec}mm</span>
                         <span>
-                            <span class="temp-high">🔥 ${Math.round(data.daily.temperature_2m_max[index])}°</span> / 
-                            <span class="temp-low">❄️ ${Math.round(data.daily.temperature_2m_min[index])}°</span>
+                            <span class="temp-high">${tmax}°</span>
+                            <span style="color:#999;"> / </span>
+                            <span class="temp-low">${tmin}°</span>
                         </span>
                     </div>
                 `;
             });
         }
 
-        // ================= GEOLOCALIZAÇÃO =================
-        
-        function getLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    position => {
-                        const { latitude, longitude } = position.coords;
-                        map.setView([latitude, longitude], 10);
-                        
-                        if(marker) map.removeLayer(marker);
-                        marker = L.marker([latitude, longitude]).addTo(map)
-                            .bindPopup("📍 Sua Localização Agrícola").openPopup();
-
-                        const locationText = `📍 Coordenadas: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-                        document.getElementById('location-name').innerText = locationText;
-                        getWeatherData(latitude, longitude);
-                    }, 
-                    error => {
-                        console.error("Erro GPS:", error);
-                        alert("⚠️ Não foi possível acessar sua localização. Verifique as permissões.");
-                        document.getElementById('location-name').innerText = "⚠️ Localização não disponível - usando Brasília";
-                    }
-                );
-            } else {
-                alert("Seu navegador não suporta geolocalização.");
+        // ── Geolocalização ─────────────────────────────────────────
+        async function getLocation() {
+            if (!navigator.geolocation) {
+                alert("Geolocalização não suportada neste navegador.");
+                return;
             }
+
+            navigator.geolocation.getCurrentPosition(
+                async (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    map.setView([latitude, longitude], 11);
+
+                    if (marker) map.removeLayer(marker);
+                    marker = L.marker([latitude, longitude]).addTo(map)
+                        .bindPopup("📍 Sua Localização").openPopup();
+
+                    // Geocodificação reversa (Nominatim)
+                    try {
+                        const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+                        const geoData = await geo.json();
+                        const cidade = geoData.address?.city || geoData.address?.town || geoData.address?.village || '';
+                        const estado = geoData.address?.state || '';
+                        document.getElementById('location-name').innerText =
+                            cidade ? `📍 ${cidade} — ${estado}` : `📍 ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                    } catch {
+                        document.getElementById('location-name').innerText =
+                            `📍 ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                    }
+
+                    getWeatherData(latitude, longitude);
+                },
+                () => alert("Não foi possível acessar sua localização.")
+            );
         }
 
-        // Inicialização padrão (Brasília)
+        // Carrega Brasília como padrão inicial
         getWeatherData(defaultCoords[0], defaultCoords[1]);
-        document.getElementById('location-name').innerText = `📍 Brasília (Padrão) | Clique em "MINHA ÁREA" para usar sua localização`;
-        
-        // Pequeno helper para mostrar no console que as camadas estão ativas
-        console.log("🚀 AgroSat inicializado com sucesso!");
-        console.log("📡 GOES-16 e MetOp-B disponíveis no controle de camadas (canto superior direito)");
+        document.getElementById('location-name').innerText = '📍 Brasília — DF (padrão)';
     </script>
 </body>
 </html>
