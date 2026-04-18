@@ -2,188 +2,309 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MeteoAgro Pro</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>MeteoAgro - Previsão ECMWF/GFS & Satélite</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #050d1a;
-    --bg2: #081527;
-    --bg3: #0d1f38;
-    --card: rgba(13,31,56,0.9);
-    --border: rgba(56,139,253,0.2);
-    --accent: #38b6ff;
-    --accent2: #ff7b2f;
-    --ecmwf: #4ade80;
-    --gfs: #fb923c;
-    --text: #e2eaf4;
-    --muted: #7a9abf;
-  }
+:root{
+  --bg:#04101f;--bg2:#071828;--bg3:#0b1f35;
+  --card:rgba(11,31,53,0.9);--border:rgba(56,139,253,0.18);
+  --accent:#38b6ff;--accent2:#ff8c38;
+  --ecmwf:#34d399;--gfs:#f97316;
+  --text:#ddeeff;--muted:#6a8fad;--rain:#60a5fa;--danger:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(56,139,253,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,139,253,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+.wrap{max-width:860px;margin:0 auto;padding:14px 14px 40px;position:relative;z-index:1}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 0 14px;border-bottom:1px solid var(--border);margin-bottom:16px;gap:10px;flex-wrap:wrap}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:4px;white-space:nowrap}
+.logo .l1{color:var(--accent)}.logo .l2{color:var(--accent2)}
+.search-wrap{position:relative;flex:1;min-width:180px}
+.search-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:22px;padding:9px 40px 9px 36px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;transition:border-color .2s}
+.search-input:focus{border-color:var(--accent)}
+.sico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;font-size:.9rem}
+.gps-ico{position:absolute;right:9px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--accent);cursor:pointer;font-size:1rem;padding:4px;display:flex;align-items:center;justify-content:center;transition:opacity .2s}
+.gps-ico:hover{opacity:.7}
+.gps-ico.spin{animation:rot .8s linear infinite}
+@keyframes rot{to{transform:translateY(-50%) rotate(360deg)}}
+.dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--bg3);border:1px solid var(--border);border-radius:14px;overflow:hidden;z-index:50;box-shadow:0 8px 32px rgba(0,0,0,.6);display:none}
+.dropdown.open{display:block}
+.drop-item{padding:11px 15px;font-size:.81rem;cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:flex-start;gap:8px}
+.drop-item:last-child{border-bottom:none}
+.drop-item:hover{background:rgba(56,182,255,.08)}
+.drop-name{font-weight:500;font-size:.82rem}
+.drop-sub{font-size:.7rem;color:var(--muted)}
+.drop-empty{padding:14px 15px;font-size:.8rem;color:var(--muted);text-align:center}
 
-  .container { max-width: 600px; margin: 0 auto; padding: 15px; }
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);border-radius:12px;padding:4px;border:1px solid var(--border)}
+.tab{flex:1;padding:8px 2px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.74rem;font-weight:500;cursor:pointer;transition:all .2s;text-align:center}
+.tab.active{background:var(--accent);color:#000;font-weight:700}
+.pane{display:none}.pane.active{display:block;animation:fi .3s ease}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; letter-spacing: 2px; }
-  .logo span { color: var(--accent2); }
+/* STATE BOX */
+.sbox{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:14px;text-align:center}
+.spinner{width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:rot .8s linear infinite}
+.smsg{color:var(--muted);font-size:.84rem;line-height:1.6}
+.retry{margin-top:6px;padding:9px 24px;background:var(--accent);border:none;border-radius:9px;color:#000;font-weight:700;font-size:.85rem;font-family:'DM Sans',sans-serif;cursor:pointer}
 
-  .gps-row { display: flex; gap: 8px; align-items: center; margin-bottom: 15px; }
-  .btn-gps { background: var(--bg3); border: 1px solid var(--border); color: var(--accent); padding: 8px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
-  .loc-badge { background: var(--bg2); padding: 8px 15px; border-radius: 20px; font-size: 0.75rem; border: 1px solid var(--border); color: var(--muted); flex-grow: 1; text-align: center; }
+/* HERO */
+.hero{background:linear-gradient(145deg,#0b2540,#061523);border:1px solid var(--border);border-radius:18px;padding:20px;margin-bottom:14px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(56,182,255,.1),transparent 70%);pointer-events:none}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.btemp{font-family:'Bebas Neue',sans-serif;font-size:5.5rem;line-height:1;color:#fff}
+.btemp sup{font-size:2rem;vertical-align:top;margin-top:10px;color:var(--accent)}
+.hico{font-size:4.5rem;filter:drop-shadow(0 0 16px rgba(56,182,255,.3))}
+.hdesc{font-size:1rem;color:var(--accent);font-weight:500;margin-bottom:3px}
+.hsub{font-size:.72rem;color:var(--muted);margin-bottom:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.gst{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:10px;padding:9px 8px;text-align:center}
+.gst-l{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.gst-v{font-family:'JetBrains Mono',monospace;font-size:.9rem;font-weight:600}
 
-  .tabs { display: flex; gap: 5px; background: var(--bg3); padding: 5px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
-  .tab { flex: 1; padding: 10px; border: none; border-radius: 8px; background: transparent; color: var(--muted); font-weight: 600; font-size: 0.75rem; cursor: pointer; }
-  .tab.active { background: var(--accent); color: #000; }
+/* CHUVA BOX */
+.rain-box{background:linear-gradient(135deg,rgba(96,165,250,.1),rgba(56,182,255,.03));border:1px solid rgba(96,165,250,.25);border-radius:16px;padding:18px;margin-bottom:14px}
+.rtitle{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;color:var(--rain);margin-bottom:12px}
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.rgc{background:rgba(255,255,255,.04);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:10px 8px;text-align:center}
+.rgc-l{font-size:.62rem;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+.rgc-v{font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;color:var(--rain)}
 
-  .tab-content { display: none; }
-  .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+/* BARRAS CHUVA */
+.bars-scroll{overflow-x:auto;padding-bottom:4px}
+.bars-inner{display:flex;gap:4px;align-items:flex-end;min-width:max-content;padding-bottom:2px}
+.bc{display:flex;flex-direction:column;align-items:center;gap:1px;width:38px}
+.bval{font-size:.6rem;font-family:'JetBrains Mono',monospace;color:var(--rain);font-weight:700;min-height:14px;display:flex;align-items:flex-end}
+.bbar{width:26px;border-radius:4px 4px 0 0;min-height:3px;background:rgba(96,165,250,.3);transition:opacity .2s}
+.bbar.wet{background:linear-gradient(to top,#1d4ed8,var(--rain));opacity:.85}
+.btime{font-size:.58rem;color:var(--muted);margin-top:2px}
+.bprob{font-size:.56rem;color:var(--muted)}
 
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 12px; position: relative; overflow: hidden; }
-  .card.ecmwf { border-left: 4px solid var(--ecmwf); }
-  .card.gfs { border-left: 4px solid var(--gfs); }
+/* HOURLY GERAL */
+.hscroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:thin}
+.hcard{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:9px 11px;text-align:center;min-width:64px;transition:border-color .2s}
+.hcard.now{border-color:var(--accent);background:rgba(56,182,255,.07)}
+.htime{font-size:.65rem;color:var(--muted);margin-bottom:3px}
+.hicon{font-size:1.25rem;margin-bottom:1px}
+.htp{font-family:'JetBrains Mono',monospace;font-size:.88rem;font-weight:600}
+.hrn{font-size:.63rem;color:var(--rain);margin-top:2px;font-weight:700}
 
-  .temp-val { font-size: 3rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin: 5px 0; }
-  .label-mod { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+/* SECTION */
+.sec{font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:7px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
 
-  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-  .stat-box { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; text-align: center; border: 1px solid var(--border); }
-  .stat-label { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; }
-  .stat-value { font-size: 0.9rem; font-weight: 600; color: #fff; }
+/* DAILY */
+.dlist{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.drow{display:grid;grid-template-columns:86px 33px 1fr 50px 50px 56px;align-items:center;gap:7px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px 13px}
+.drow:hover{border-color:var(--accent)}
+.dname{font-size:.8rem;font-weight:600}.dico{font-size:1.15rem;text-align:center}
+.tbw{display:flex;align-items:center;gap:5px}.tbbg{flex:1;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
+.tbf{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--rain),var(--accent2))}
+.dmin{font-family:'JetBrains Mono',monospace;font-size:.77rem;color:var(--rain);text-align:right}
+.dmax{font-family:'JetBrains Mono',monospace;font-size:.77rem;color:var(--accent2);text-align:right}
+.dprp{font-size:.7rem;color:var(--rain);text-align:right}
 
-  .loading-overlay { text-align: center; padding: 50px 0; }
-  .spinner { width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+/* MODELOS */
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px}
+.mcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:15px}
+.mcard.ec{border-top:3px solid var(--ecmwf)}.mcard.gf{border-top:3px solid var(--gfs)}
+.mhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.mname{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px}
+.mcard.ec .mname{color:var(--ecmwf)}.mcard.gf .mname{color:var(--gfs)}
+.morg{font-size:.62rem;color:var(--muted)}
+.mbadge{display:inline-flex;font-size:.64rem;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:20px;font-weight:700}
+.mbadge.ec{background:rgba(52,211,153,.1);color:var(--ecmwf);border:1px solid rgba(52,211,153,.3)}
+.mbadge.gf{background:rgba(249,115,22,.1);color:var(--gfs);border:1px solid rgba(249,115,22,.3)}
+.mtemp{font-family:'JetBrains Mono',monospace;font-size:2rem;font-weight:700;margin-bottom:10px}
+.mcard.ec .mtemp{color:var(--ecmwf)}.mcard.gf .mtemp{color:var(--gfs)}
+.mst{display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:5px}
+.mst-l{color:var(--muted)}.mst-v{font-family:'JetBrains Mono',monospace;font-weight:600}
+.diff-warn{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:10px 13px;font-size:.76rem;color:#fbbf24;margin-bottom:12px;display:none}
 
-  iframe { width: 100%; height: 500px; border: none; border-radius: 16px; border: 1px solid var(--border); }
+/* SAT */
+.sat-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.sat-btn{padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:.74rem;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .2s}
+.sat-btn:hover,.sat-btn.active{background:var(--accent);color:#000;border-color:var(--accent)}
+.sat-frame{border-radius:15px;overflow:hidden;border:1px solid var(--border);position:relative;margin-bottom:10px}
+.sat-frame iframe{width:100%;height:460px;border:none;display:block}
+.sat-over{position:absolute;top:9px;left:9px;display:flex;gap:5px}
+.sbadge{background:rgba(4,16,31,.85);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:.67rem;font-family:'JetBrains Mono',monospace;color:var(--accent);backdrop-filter:blur(8px)}
+
+/* UPDATE */
+.upd{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-bottom:8px}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ecmwf);margin-right:5px;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+@media(max-width:580px){
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .mrow{grid-template-columns:1fr}
+  .drow{grid-template-columns:76px 30px 1fr 44px 44px}
+  .dprp{display:none}
+  .btemp{font-size:4rem}
+  .search-wrap{max-width:100%;flex:1 1 100%}
+}
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<div class="container">
-  <header>
-    <div class="logo">METEO<span>AGRO</span></div>
-  </header>
-
-  <div class="gps-row">
-    <button class="btn-gps" onclick="getLocation()">📍 GPS</button>
-    <div class="loc-badge" id="coords">Brasília, DF</div>
+<header>
+  <div class="logo"><span class="l1">METEO</span><span class="l2">AGRO</span></div>
+  <div class="search-wrap">
+    <span class="sico">&#128269;</span>
+    <input class="search-input" id="searchInput" type="text" placeholder="Buscar cidade, fazenda, município…" autocomplete="off">
+    <button class="gps-ico" id="gpsBtn" title="Minha localização atual" onclick="triggerGPS()">&#128225;</button>
+    <div class="dropdown" id="dropdown"></div>
   </div>
+</header>
 
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab(event, 'agora')">🌡️ AGORA</button>
-    <button class="tab" onclick="switchTab(event, 'modelos')">📡 MODELOS</button>
-    <button class="tab" onclick="switchTab(event, 'satelite')">🛰️ SATÉLITE</button>
+<div class="tabs">
+  <button class="tab active" onclick="showTab('agora',this)">&#127777; Agora</button>
+  <button class="tab" onclick="showTab('previsao',this)">&#128197; 7 Dias</button>
+  <button class="tab" onclick="showTab('modelos',this)">&#128225; Modelos</button>
+  <button class="tab" onclick="showTab('satelite',this)">&#128752; Satélite</button>
+</div>
+
+<!-- AGORA -->
+<div class="pane active" id="pane-agora">
+  <div class="sbox" id="st-agora">
+    <div class="spinner"></div>
+    <div class="smsg">Acessando GPS / localização atual...</div>
   </div>
-
-  <div id="loader" class="loading-overlay"><div class="spinner"></div>Sincronizando satélites...</div>
-
-  <div id="content" style="display:none">
-    <div id="agora" class="tab-content active">
-      <div class="card" style="background: linear-gradient(135deg, #0d2a4a 0%, #050d1a 100%);">
-        <div style="display:flex; justify-content:space-between">
-          <div>
-            <div class="label-mod">Temperatura Atual</div>
-            <div class="temp-val" id="mainTemp">--°</div>
-          </div>
-          <div style="font-size: 3rem" id="mainIcon">🌤️</div>
+  <div id="data-agora" style="display:none">
+    <div class="upd"><span><span class="dot"></span>ECMWF (Europeu) · Tempo real</span><span id="updTime"></span></div>
+    <div class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="btemp" id="hTemp">&#8212;<sup>°C</sup></div>
+          <div class="hdesc" id="hDesc">&#8212;</div>
+          <div class="hsub" id="hSub">&#8212;</div>
         </div>
-        <div class="stat-grid">
-          <div class="stat-box"><div class="stat-label">Umidade</div><div class="stat-value" id="mainHum">--</div></div>
-          <div class="stat-box"><div class="stat-label">Vento</div><div class="stat-value" id="mainWind">--</div></div>
-        </div>
+        <div class="hico" id="hIco">&#127780;</div>
+      </div>
+      <div class="g4">
+        <div class="gst"><div class="gst-l">Sensação</div><div class="gst-v" id="hFeel">&#8212;</div></div>
+        <div class="gst"><div class="gst-l">Umidade</div><div class="gst-v" id="hHum">&#8212;</div></div>
+        <div class="gst"><div class="gst-l">Vento</div><div class="gst-v" id="hWind">&#8212;</div></div>
+        <div class="gst"><div class="gst-l">UV</div><div class="gst-v" id="hUV">&#8212;</div></div>
+        <div class="gst"><div class="gst-l">Pressão</div><div class="gst-v" id="hPres">&#8212;</div></div>
+        <div class="gst"><div class="gst-l">Visib.</div><div class="gst-v" id="hVis">&#8212;</div></div>
+        <div class="gst"><div class="gst-l">Nuvens</div><div class="gst-v" id="hCloud">&#8212;</div></div>
+        <div class="gst"><div class="gst-l">Rajada</div><div class="gst-v" id="hGust">&#8212;</div></div>
       </div>
     </div>
 
-    <div id="modelos" class="tab-content">
-      <div class="card ecmwf">
-        <div class="label-mod" style="color:var(--ecmwf)">Modelo Europeu (ECMWF)</div>
-        <div class="temp-val" id="tempEC">--°</div>
-        <div style="font-size:0.75rem; color:var(--muted)">Previsão de alta resolução IFS</div>
+    <div class="rain-box">
+      <div class="rtitle">&#127783; Chuva — Próximas 24h (ECMWF)</div>
+      <div class="rgrid">
+        <div class="rgc"><div class="rgc-l">Agora (1h)</div><div class="rgc-v" id="rNow">&#8212;</div></div>
+        <div class="rgc"><div class="rgc-l">Próx. 6h</div><div class="rgc-v" id="r6h">&#8212;</div></div>
+        <div class="rgc"><div class="rgc-l">Próx. 24h</div><div class="rgc-v" id="r24h">&#8212;</div></div>
+        <div class="rgc"><div class="rgc-l">Prob. atual</div><div class="rgc-v" id="rProb">&#8212;</div></div>
+        <div class="rgc"><div class="rgc-l">Pico horário</div><div class="rgc-v" id="rPeak">&#8212;</div></div>
+        <div class="rgc"><div class="rgc-l">Vol. pico</div><div class="rgc-v" id="rPeakMm">&#8212;</div></div>
       </div>
-      <div class="card gfs">
-        <div class="label-mod" style="color:var(--gfs)">Modelo Americano (GFS)</div>
-        <div class="temp-val" id="tempGFS">--°</div>
-        <div style="font-size:0.75rem; color:var(--muted)">Processamento NOAA Internacional</div>
-      </div>
+      <div class="sec">Volume por hora (mm)</div>
+      <div class="bars-scroll"><div class="bars-inner" id="rainBars"></div></div>
     </div>
 
-    <div id="satelite" class="tab-content">
-      <iframe id="windy"></iframe>
-    </div>
+    <div class="sec">Próximas 24h — hora a hora (ECMWF)</div>
+    <div class="hscroll" id="hourlyScroll"></div>
   </div>
 </div>
 
+<!-- 7 DIAS -->
+<div class="pane" id="pane-previsao">
+  <div class="sec">Previsão 7 dias · ECMWF (Europeu)</div>
+  <div class="dlist" id="dailyList"></div>
+  <div class="sec">Comparativo GFS (Americano) + ECMWF</div>
+  <div class="hscroll" id="rainCompare"></div>
+</div>
+
+<!-- MODELOS -->
+<div class="pane" id="pane-modelos">
+  <div class="diff-warn" id="diffWarn"></div>
+  <div class="mrow">
+    <div class="mcard ec">
+      <div class="mhdr"><div><div class="mname">ECMWF IFS</div><div class="morg">Centro Europeu · Alta precisão</div></div><span class="mbadge ec">Europeu</span></div>
+      <div class="mtemp" id="ecTemp">&#8212;</div>
+      <div class="mst"><span class="mst-l">Min/Max hoje</span><span class="mst-v" id="ecRange">&#8212;</span></div>
+      <div class="mst"><span class="mst-l">Chuva 24h</span><span class="mst-v" id="ecRain">&#8212;</span></div>
+      <div class="mst"><span class="mst-l">Umidade</span><span class="mst-v" id="ecHum">&#8212;</span></div>
+      <div class="mst"><span class="mst-l">Vento</span><span class="mst-v" id="ecWind">&#8212;</span></div>
+    </div>
+    <div class="mcard gf">
+      <div class="mhdr"><div><div class="mname">GFS (NOAA)</div><div class="morg">Americano · Atualiza 4x/dia</div></div><span class="mbadge gf">Americano</span></div>
+      <div class="mtemp" id="gfsTemp">&#8212;</div>
+      <div class="mst"><span class="mst-l">Min/Max hoje</span><span class="mst-v" id="gfsRange">&#8212;</span></div>
+      <div class="mst"><span class="mst-l">Chuva 24h</span><span class="mst-v" id="gfsRain">&#8212;</span></div>
+      <div class="mst"><span class="mst-l">Umidade</span><span class="mst-v" id="gfsHum">&#8212;</span></div>
+      <div class="mst"><span class="mst-l">Vento</span><span class="mst-v" id="gfsWind">&#8212;</span></div>
+    </div>
+  </div>
+  <div style="margin-top:10px;padding:13px;background:var(--bg3);border:1px solid var(--border);border-radius:11px;font-size:.72rem;color:var(--muted);line-height:1.7">
+    <strong style="color:var(--text)">🌎 Comparação gratuita:</strong> <span style="color:var(--ecmwf)">ECMWF</span> (europeu) melhor para ciclones e precipitação no Brasil. <span style="color:var(--gfs)">GFS</span> (americano) excelente para tendências de 7 dias. Dados via Open-Meteo.
+  </div>
+</div>
+
+<!-- SATELITE -->
+<div class="pane" id="pane-satelite">
+  <div class="sec">Satélite Europeu/Americano · Windy (ECMWF)</div>
+  <div class="sat-btns">
+    <button class="sat-btn active" onclick="setSat('clouds_new',this)">&#9925; Nuvens</button>
+    <button class="sat-btn" onclick="setSat('precipitation_new',this)">&#127783; Chuva</button>
+    <button class="sat-btn" onclick="setSat('wind_new',this)">&#128168; Vento</button>
+    <button class="sat-btn" onclick="setSat('temp_new',this)">&#127777; Temperatura</button>
+    <button class="sat-btn" onclick="setSat('radar',this)">&#128225; Radar</button>
+  </div>
+  <div class="sat-frame">
+    <iframe id="windyFrame" src="" allowfullscreen loading="lazy"></iframe>
+    <div class="sat-over"><span class="sbadge">&#128752; Windy · ECMWF/GFS</span><span class="sbadge">Satélite ao vivo</span></div>
+  </div>
+  <div style="font-size:.7rem;color:var(--muted);text-align:center">Camadas: GOES-16 / Meteosat + modelo europeu ECMWF.</div>
+</div>
+
+</div>
 <script>
-let lat = -15.78, lon = -47.93;
+// ========================== APLICAÇÃO COMPLETA ==========================
+let LAT = null, LON = null, LOCNAME = '';
+let timeZone = 'America/Sao_Paulo';
+try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo'; } catch(e) {}
+let ecData = null, gfsData = null;
+let currentSatLayer = 'clouds_new';
 
-async function fetchData() {
-  document.getElementById('loader').style.display = 'block';
-  document.getElementById('content').style.display = 'none';
+// Códigos climáticos
+const WEATHER_CODES = {
+  0:['☀️','Céu limpo'],1:['🌤️','Predom. limpo'],2:['⛅','Parcial nublado'],3:['☁️','Nublado'],
+  45:['🌫️','Névoa'],48:['🌫️','Névoa/geada'],51:['🌦️','Chuvisco leve'],53:['🌦️','Chuvisco'],
+  55:['🌧️','Chuvisco forte'],61:['🌧️','Chuva leve'],63:['🌧️','Chuva mod.'],65:['🌧️','Chuva forte'],
+  80:['🌦️','Pancadas leves'],81:['🌧️','Pancadas'],82:['⛈️','Pancadas fortes'],95:['⛈️','Trovoada'],
+  96:['⛈️','Trovoada/granizo'],99:['⛈️','Trovoada intensa']
+};
+function getWeatherIcon(code) { return WEATHER_CODES[code] || ['🌤️','Variável']; }
+function windDirection(deg) { const dirs = ['N','NE','L','SE','S','SO','O','NO']; return dirs[Math.round(deg/45)%8]; }
 
+// Elementos DOM
+const searchInput = document.getElementById('searchInput');
+const dropdown = document.getElementById('dropdown');
+
+// Busca Nominatim
+let searchTimer = null;
+searchInput.addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  const q = this.value.trim();
+  if (q.length < 2) { dropdown.classList.remove('open'); return; }
+  searchTimer = setTimeout(() => performSearch(q), 350);
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.search-wrap')) dropdown.classList.remove('open'); });
+
+async function performSearch(query) {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=6&accept-language=pt&addressdetails=1&countrycodes=br,ar,py,bo,pe,co,ve,uy,cl`;
   try {
-    // Usando apenas os campos essenciais para evitar erro de tamanho de URL
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&models=ecmwf_ifs04,gfs_seamless&timezone=auto`;
-    
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Falha na API');
-    const data = await response.json();
-
-    // Mapeamento dinâmico das chaves (o Open-Meteo as nomeia conforme os modelos pedidos)
-    const c = data.current;
-    const tEC = c.temperature_2m_ecmwf_ifs04;
-    const tGFS = c.temperature_2m_gfs_seamless;
-
-    // Atualiza Interface
-    document.getElementById('mainTemp').innerText = Math.round(tEC || tGFS) + "°";
-    document.getElementById('mainHum').innerText = (c.relative_humidity_2m_ecmwf_ifs04 || c.relative_humidity_2m_gfs_seamless) + "%";
-    document.getElementById('mainWind').innerText = (c.wind_speed_10m_ecmwf_ifs04 || c.wind_speed_10m_gfs_seamless) + " km/h";
-
-    document.getElementById('tempEC').innerText = tEC ? Math.round(tEC) + "°" : "N/A";
-    document.getElementById('tempGFS').innerText = tGFS ? Math.round(tGFS) + "°" : "N/A";
-
-    document.getElementById('loader').style.display = 'none';
-    document.getElementById('content').style.display = 'block';
-    
-    // Atualiza o Satélite de forma preguiçosa
-    updateWindy();
-
-  } catch (error) {
-    console.error(error);
-    document.getElementById('loader').innerHTML = "<span style='color:var(--accent2)'>⚠️ Erro de conexão. Tente novamente.</span>";
-  }
-}
-
-function getLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(p => {
-      lat = p.coords.latitude;
-      lon = p.coords.longitude;
-      document.getElementById('coords').innerText = `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
-      fetchData();
-    }, () => alert("GPS negado ou indisponível."));
-  }
-}
-
-function switchTab(e, tabId) {
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  e.currentTarget.classList.add('active');
-}
-
-function updateWindy() {
-  const frame = document.getElementById('windy');
-  if(!frame.src) {
-    frame.src = `https://embed.windy.com/embed2.html?lat=${lat}&lon=${lon}&zoom=5&level=surface&overlay=radar&product=ecmwf&menu=&message=true&marker=true&calendar=now&pressure=true&type=map&location=coordinates&detail=true&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
-  }
-}
-
-// Inicia automático
-fetchData();
-</script>
-</body>
-</html>
+    let resp = await fetch(url);
+    let data = await resp.json();
+    if (!data.length) {
